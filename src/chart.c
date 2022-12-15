@@ -58,6 +58,7 @@ struct chart_axis_tag {
     TCHAR* name;
     int offset;
     CHAR factor_exp;
+    BOOL suppress_gridlines;
 };
 
 typedef struct chart_data_tag chart_data_t;
@@ -1073,7 +1074,7 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const grid_layout_t* gl)
     /* Paint grid lines. */
     xd2d_color_set_rgb(&c, 191, 191, 191);
     c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
-    if(gl->x_axis.type != GRID_AXIS_CATEGORY) {
+    if(gl->x_axis.type != GRID_AXIS_CATEGORY  &&  !xa->suppress_gridlines) {
         for(v = gl->x_axis.grid_base; v <= gl->x_axis.max_value; v += gl->x_axis.grid_delta) {
             pt0.x = grid_map_x(v, gl);
             pt0.y = gl->y_axis.coord0;
@@ -1082,7 +1083,7 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const grid_layout_t* gl)
             c_ID2D1RenderTarget_DrawLine(rt, pt0, pt1, (c_ID2D1Brush*) ctx->solid_brush, 1.0f, NULL);
         }
     }
-    if(gl->y_axis.type != GRID_AXIS_CATEGORY) {
+    if(gl->y_axis.type != GRID_AXIS_CATEGORY  &&  !ya->suppress_gridlines) {
         for(v = gl->y_axis.grid_base; v <= gl->y_axis.max_value; v += gl->y_axis.grid_delta) {
             pt0.x = gl->x_axis.coord0;
             pt0.y = grid_map_y(v, gl);
@@ -2564,6 +2565,53 @@ chart_set_axis_offset(chart_t* chart, int axis_id, int offset)
 }
 
 static BOOL
+chart_get_axis_gridline_suppress(chart_t* chart, int axis_id)
+{
+    switch(axis_id) {
+        case 1:
+            return chart->axis1.suppress_gridlines;
+
+        case 2:
+            return chart->axis2.suppress_gridlines;
+
+        default:
+            MC_TRACE("chart_get_axis_gridline_suppress: Invalid axis %d", axis_id);
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return FALSE;
+    }
+}
+
+static BOOL
+chart_set_axis_gridline_suppress(chart_t* chart, int axis_id, BOOL suppress_gridlines)
+{
+    switch(axis_id) {
+        case 0:
+            chart->axis2.suppress_gridlines = suppress_gridlines;
+            /* no break */
+
+        case 1:
+            chart->axis1.suppress_gridlines = suppress_gridlines;
+            break;
+
+        case 2:
+            chart->axis2.suppress_gridlines = suppress_gridlines;
+            break;
+
+        default:
+            MC_TRACE("chart_set_axis_gridline_suppress: Invalid axis %d", axis_id);
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return FALSE;
+    }
+
+    chart_setup_hot(chart);
+
+    if(!chart->no_redraw)
+        xd2d_invalidate(chart->win, NULL, TRUE, &chart->xd2d_cache);
+
+    return TRUE;
+}
+
+static BOOL
 chart_get_axis_legend(chart_t* chart, int axis_id, UINT buf_size, void* buffer,
                       BOOL unicode)
 {
@@ -2825,6 +2873,12 @@ chart_proc(HWND win, UINT msg, WPARAM wp, LPARAM lp)
         case MC_CHM_SETAXISLEGENDA:
             return chart_set_axis_legend(chart, wp, (void*)lp,
                                          (msg == MC_CHM_SETAXISLEGENDW));
+
+        case MC_CHM_GETAXISGRIDLINESUPPRESS:
+            return chart_get_axis_gridline_suppress(chart, wp);
+
+        case MC_CHM_SETAXISGRIDLINESUPPRESS:
+            return chart_set_axis_gridline_suppress(chart, wp, lp);
 
         case WM_SIZE:
             if(chart->xd2d_cache != NULL) {

@@ -532,6 +532,26 @@ typedef struct MC_NMCHDISPINFO_tag {
  */
 #define MC_CHM_SETAXISLEGENDA         (MC_CHM_FIRST + 21)
 
+/**
+ * @brief Gets gridline suppression for a primary or secondary axis.
+ * @param[in] wParam (@c int) Set to @c 1 for the primary axis,
+ * or @c 2 for the secondary axis.
+ * @param lParam Reserved, set to zero.
+ * @return (@c BOOL) @c TRUE if the display of gridlines is
+ * suppressed for the specified axis, @c FALSE otherwise.
+ */
+#define MC_CHM_GETAXISGRIDLINESUPPRESS (MC_CHM_FIRST + 22)
+
+/**
+ * @brief Sets gridline suppression for a primary or secondary axis.
+ * @param[in] wParam (@c int) Set to @c 0 for both axes, @c 1 for
+ * the primary axis, or @c 2 for the secondary axis.
+ * @param[in] lParam (@c BOOL) @c TRUE if the display of gridlines
+ * for the specified axis is suppressed, @c FALSE otherwise.
+ * @return (@c BOOL) @c TRUE on success, @c FALSE otherwise.
+ */
+#define MC_CHM_SETAXISGRIDLINESUPPRESS (MC_CHM_FIRST + 23)
+
 /*@}*/
 
 
