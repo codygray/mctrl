@@ -1280,7 +1280,7 @@ scatter_tooltip_text(chart_t* chart, TCHAR* buffer, UINT bufsize)
         chart_str_value(&chart->axis1, x, x_str);
         chart_str_value(&chart->axis2, y, y_str);
 
-        _sntprintf(buffer, bufsize, _T("%ls / %ls"), x_str, y_str);
+        _sntprintf(buffer, bufsize, _T("(%ls, %ls)"), x_str, y_str);
         buffer[bufsize-1] = _T('\0');
     }
 }
