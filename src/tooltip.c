@@ -34,12 +34,14 @@
 
 
 HWND
-tooltip_create(HWND control_win, HWND notify_win, BOOL tracking)
+tooltip_create(HWND control_win, HWND notify_win, BOOL tracking, BOOL balloon)
 {
     static BOOL need_init = TRUE;
     HWND tooltip_win;
 
-    TOOLTIP_TRACE("tooltip_create(%s)", tracking ? "tracking" : "");
+    TOOLTIP_TRACE("tooltip_create(%s, %s)",
+                  tracking ? "tracking" : "",
+                  balloon ? "balloon" : "");
 
     if(need_init) {
         if(MC_ERR(mc_init_comctl32(ICC_BAR_CLASSES) != 0)) {
@@ -50,7 +52,8 @@ tooltip_create(HWND control_win, HWND notify_win, BOOL tracking)
         need_init = FALSE;
     }
 
-    tooltip_win = CreateWindow(TOOLTIPS_CLASS, NULL, WS_POPUP | TTS_NOPREFIX,
+    tooltip_win = CreateWindow(TOOLTIPS_CLASS, NULL,
+                               WS_POPUP | TTS_NOPREFIX | (balloon ? TTS_BALLOON : 0),
                                0, 0, 0, 0, control_win, NULL, NULL, NULL);
     if(MC_ERR(tooltip_win == NULL)) {
         MC_TRACE_ERR("tooltip_create: CreateWindow() failed.");

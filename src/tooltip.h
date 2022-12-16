@@ -31,7 +31,7 @@
  *  - notify_win (if not NULL), it gets NM_TOOLTIPSCREATED) but all
  *    notifications from the tooltip itself are sent to the control_win.
  */
-HWND tooltip_create(HWND control_win, HWND notify_win, BOOL tracking);
+HWND tooltip_create(HWND control_win, HWND notify_win, BOOL tracking, BOOL balloon);
 void tooltip_destroy(HWND tooltip_win);
 
 /* Add/remove a tooltip tool for complete control_win. */

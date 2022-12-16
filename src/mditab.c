@@ -2811,7 +2811,7 @@ mditab_style_changed(mditab_t* mditab, STYLESTRUCT* ss)
 
     if((ss->styleOld & MC_MTS_NOTOOLTIPS) != (ss->styleNew & MC_MTS_NOTOOLTIPS)) {
         if(!(ss->styleNew & MC_MTS_NOTOOLTIPS)) {
-            mditab->tooltip_win = tooltip_create(mditab->win, mditab->notify_win, FALSE);
+            mditab->tooltip_win = tooltip_create(mditab->win, mditab->notify_win, FALSE, FALSE);
         } else {
             tooltip_destroy(mditab->tooltip_win);
             mditab->tooltip_win = NULL;
@@ -2951,7 +2951,7 @@ mditab_create(mditab_t* mditab, CREATESTRUCT* cs)
                                 &&  xdwm_is_composition_enabled());
 
     if(!(mditab->style & MC_MTS_NOTOOLTIPS))
-        mditab->tooltip_win = tooltip_create(mditab->win, mditab->notify_win, FALSE);
+        mditab->tooltip_win = tooltip_create(mditab->win, mditab->notify_win, FALSE, FALSE);
 
     return 0;
 }

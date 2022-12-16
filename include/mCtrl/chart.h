@@ -234,6 +234,18 @@ void MCTRL_API mcChart_Terminate(void);
  */
 #define MC_CHS_DOUBLEBUFFER   0x0080
 
+/**
+ * @brief Display balloon-style tooltips.
+ *
+ * If the @ref MC_CHS_NOTOOLTIPS style is not set, and thus the control
+ * creates its own tooltip control, this style causes the control to
+ * create a balloon-style tooltip control (i.e., to create the
+ * tooltip control with the @c TTS_BALLOON style flag).
+ *
+ * @sa MC_CHS_NOTOOLTIPS
+ */
+#define MC_CHS_BALLOONTIPS    0x0100
+
 /*@}*/
 
 

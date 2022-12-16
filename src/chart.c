@@ -2207,9 +2207,13 @@ chart_mouse_move(chart_t* chart, int x, int y)
     if(chart->tooltip_win != NULL  &&  chart->tooltip_active) {
         SIZE tip_size;
 
-        tooltip_size(chart->tooltip_win, &tip_size);
-        tooltip_move_tracking(chart->tooltip_win, chart->win,
-                    x - tip_size.cx / 2, y - tip_size.cy - 5);
+        if(!(chart->style & MC_CHS_BALLOONTIPS)) {
+            tooltip_size(chart->tooltip_win, &tip_size);
+            tooltip_move_tracking(chart->tooltip_win, chart->win,
+                                  x - tip_size.cx / 2, y - tip_size.cy - 5);
+        } else {
+            tooltip_move_tracking(chart->tooltip_win, chart->win, x, y);
+        }
     }
 }
 
@@ -2682,7 +2686,8 @@ chart_style_changed(chart_t* chart, STYLESTRUCT* ss)
     if((chart->style & MC_CHS_NOTOOLTIPS) != (ss->styleNew & MC_CHS_NOTOOLTIPS)) {
 
         if(!(ss->styleNew & MC_CHS_NOTOOLTIPS)) {
-            chart->tooltip_win = tooltip_create(chart->win, chart->notify_win, TRUE);
+            chart->tooltip_win = tooltip_create(chart->win, chart->notify_win, TRUE,
+                                                (ss->styleNew & MC_CHS_BALLOONTIPS));
         } else {
             tooltip_destroy(chart->tooltip_win);
             chart->tooltip_win = NULL;
@@ -2739,7 +2744,8 @@ chart_create(chart_t* chart)
     chart_setup_hot(chart);
 
     if(!(chart->style & MC_CHS_NOTOOLTIPS))
-        chart->tooltip_win = tooltip_create(chart->win, chart->notify_win, TRUE);
+        chart->tooltip_win = tooltip_create(chart->win, chart->notify_win, TRUE,
+                                            (chart->style & MC_CHS_BALLOONTIPS));
 
     return 0;
 }

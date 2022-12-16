@@ -3731,7 +3731,7 @@ treelist_style_changed(treelist_t* tl, STYLESTRUCT* ss)
 
     if((ss->styleOld & MC_TLS_NOTOOLTIPS) != (ss->styleNew & MC_TLS_NOTOOLTIPS)) {
         if(!(ss->styleNew & MC_TLS_NOTOOLTIPS)) {
-            tl->tooltip_win = tooltip_create(tl->win, tl->notify_win, FALSE);
+            tl->tooltip_win = tooltip_create(tl->win, tl->notify_win, FALSE, FALSE);
         } else {
             tooltip_destroy(tl->tooltip_win);
             tl->tooltip_win = NULL;
@@ -3838,7 +3838,7 @@ treelist_create(treelist_t* tl)
     MC_SEND(tl->header_win, HDM_SETUNICODEFORMAT, MC_IS_UNICODE, 0);
 
     if(!(tl->style & MC_TLS_NOTOOLTIPS))
-        tl->tooltip_win = tooltip_create(tl->win, tl->notify_win, FALSE);
+        tl->tooltip_win = tooltip_create(tl->win, tl->notify_win, FALSE, FALSE);
 
     treelist_open_theme(tl);
     return 0;
