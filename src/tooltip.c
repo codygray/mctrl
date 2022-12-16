@@ -50,8 +50,8 @@ tooltip_create(HWND control_win, HWND notify_win, BOOL tracking)
         need_init = FALSE;
     }
 
-    tooltip_win = CreateWindow(TOOLTIPS_CLASS, NULL, WS_POPUP, 0, 0, 0, 0,
-                               control_win, NULL, NULL, NULL);
+    tooltip_win = CreateWindow(TOOLTIPS_CLASS, NULL, WS_POPUP | TTS_NOPREFIX,
+                               0, 0, 0, 0, control_win, NULL, NULL, NULL);
     if(MC_ERR(tooltip_win == NULL)) {
         MC_TRACE_ERR("tooltip_create: CreateWindow() failed.");
         return NULL;
