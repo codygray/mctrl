@@ -90,7 +90,7 @@ tooltip_install(HWND tooltip_win, HWND control_win, BOOL tracking)
     info.cbSize = TTTOOLINFO_V1_SIZE;
     info.uFlags = TTF_TRANSPARENT | TTF_IDISHWND | TTF_SUBCLASS;
     if(tracking)
-        info.uFlags = TTF_TRACK | TTF_ABSOLUTE;
+        info.uFlags = TTF_TRACK;
     info.uId = (UINT_PTR) control_win;
     info.hwnd = control_win;
     MC_SEND(tooltip_win, TTM_ADDTOOL, 0, &info);
