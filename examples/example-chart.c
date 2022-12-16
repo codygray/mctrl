@@ -16,6 +16,7 @@
 
 
 static HINSTANCE hInst;
+static COLORREF clrStatus;
 
 
 static void
@@ -108,6 +109,45 @@ SetupCommonChart(HWND hwndChart)
     SendMessage(hwndChart, MC_CHM_SETDATASETLEGEND, 2, (LPARAM) _T("Greece"));
 }
 
+static LRESULT
+OnHotTrack(HWND hwndDlg, const MC_NMCHHOTTRACK* pInfo)
+{
+   const HWND hwndStatus = GetDlgItem(hwndDlg, IDC_CHART_STATUS);
+
+   enum { cchBuffer = 256 };
+   TCHAR szBuffer[cchBuffer];
+   szBuffer[0] = _T('\0');
+
+   if(pInfo->pszValue) {
+       if(pInfo->pszValueY) {
+           _sntprintf(szBuffer,
+                      cchBuffer,
+                      _T("You are hovering over the point (%s, %s), representing \"%s\" (series #%d)."),
+                      pInfo->pszValue,
+                      pInfo->pszValueY,
+                      pInfo->pszDataSet,
+                      pInfo->iDataSet + 1);
+       } else {
+           _sntprintf(szBuffer,
+                      cchBuffer,
+                      _T("You are hovering over the value \"%s\", representing \"%s\" (series #%d)."),
+                      pInfo->pszValue,
+                      pInfo->pszDataSet,
+                      pInfo->iDataSet + 1);
+       }
+       szBuffer[cchBuffer - 1] = _T('\0');
+
+       clrStatus = pInfo->clrDataSet;
+   } else {
+       clrStatus = GetSysColor(COLOR_3DFACE);
+   }
+
+   SetWindowText(hwndStatus, szBuffer);
+   InvalidateRect(hwndStatus, NULL, TRUE);
+
+   return 0;  /* or return non-zero to suppress the automatic tooltip */
+}
+
 /* Main window procedure */
 static INT_PTR CALLBACK
 DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -128,6 +168,28 @@ DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             SetupCommonChart(GetDlgItem(hwndDlg, IDC_CHART_BAR));
             SetupCommonChart(GetDlgItem(hwndDlg, IDC_CHART_STACKEDBAR));
             return TRUE;
+
+        case WM_CTLCOLORSTATIC:
+        {
+            const HDC hDC = (HDC)wParam;
+            SetDCBrushColor(hDC, clrStatus);
+            SetBkColor(hDC, clrStatus);
+            SetTextColor(hDC, RGB(255, 255, 255));
+            return (INT_PTR)GetStockObject(DC_BRUSH);
+        }
+
+        case WM_NOTIFY:
+            switch(((LPNMHDR)lParam)->code) {
+                case MC_CHN_HOTTRACK:
+                {
+                    const LRESULT result = OnHotTrack(hwndDlg, (MC_NMCHHOTTRACK*)lParam);
+                    SetWindowLongPtr(hwndDlg, DWLP_MSGRESULT, result);
+                    return TRUE;
+                }
+                default:
+                    break;
+            }
+            return FALSE;
 
         default:
             return FALSE;

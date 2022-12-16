@@ -313,6 +313,48 @@ typedef struct MC_NMCHDISPINFO_tag {
     int* piValues;
 } MC_NMCHDISPINFO;
 
+/**
+ * @brief Structure for notification @ref MC_CHN_HOTTRACK.
+ */
+typedef struct MC_NMCHHOTTRACK_tag {
+    /** Standard notification structure header. */
+    NMHDR hdr;
+    /**
+     * @brief String containing the value of the hot-tracked item.
+     *
+     * If no item is hot-tracked, then this will be a null pointer.
+     *
+     * If an item is hot-tracked and the chart is a scatter plot, then
+     * this is actually the X-axis value of the tracked point.
+     */
+    const TCHAR* pszValue;
+    /**
+     * @brief String containing the Y value of a hot-tracked scatter point.
+     *
+     * If no item is hot-tracked, or the chart is anything other than a
+     * scatter plot, then this will be a null pointer.
+     */
+    const TCHAR* pszValueY;
+    /**
+     * @brief String containing the name of the hot-tracked item's data set.
+     *
+     * If no item is hot-tracked, then this will be a null pointer.
+     */
+    const TCHAR* pszDataSet;
+    /**
+     * @brief Color of the hot-tracked item's data set.
+     *
+     * If no item is hot-tracked, then this will be @c CLR_INVALID.
+     */
+    COLORREF clrDataSet;
+    /**
+     * @brief Index of the hot-tracked item's data set.
+     *
+     * If no item is hot-tracked, then this will be -1.
+     */
+    int iDataSet;
+} MC_NMCHHOTTRACK;
+
 /*@}*/
 
 
@@ -586,6 +628,33 @@ typedef struct MC_NMCHDISPINFO_tag {
  * @return Ignored.
  */
 #define MC_CHN_GETDISPINFO            (MC_CHN_FIRST + 0)
+
+/**
+ * @brief Fired when the user moves the mouse over (or off of) an item.
+ *
+ * This notification serves to inform the client that the user has moved the
+ * mouse pointer over (or off of) an item in the chart. It is sent in the
+ * form of a @c WM_NOTIFY message and provides detailed information about
+ * the highlighted item.
+ *
+ * Assuming that the chart control does not have the @ref MC_CHS_NOTOOLTIPS
+ * style set, this notification precedes the display of a tooltip control
+ * that contains similar information. (Note that this notification is sent
+ * even if the control does have the @ref MC_CHS_NOTOOLTIPS style set.)
+ * Handling this notification allows the client to take some action
+ * in addition to or instead of the default display of a tooltip;
+ * for example, the client might want to display the same information in
+ * a status bar. To suppress subsequent automatic display of a tooltip,
+ * the client should return a non-zero value (any currently-displayed
+ * tooltip will still be hidden).
+ *
+ * @param[in] wParam (@c int) Id of the control sending the notification.
+ * @param[in,out] lParam (@ref MC_NMCHITEM*) Pointer to structure that
+ * contains information about the highlighted data point.
+ * @return Return a non-zero value to suppress subsequent automatic
+ * display of a tooltip, or zero to allow normal processing.
+ */
+#define MC_CHN_HOTTRACK               (MC_CHN_FIRST + 1)
 
 /*@}*/
 

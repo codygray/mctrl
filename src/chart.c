@@ -280,25 +280,6 @@ chart_str_value(chart_axis_t* axis, int value, WCHAR buffer[CHART_STR_VALUE_MAX_
     }
 }
 
-static void
-chart_tooltip_text_common(chart_t* chart, chart_axis_t* axis,
-                          TCHAR* buffer, UINT bufsize)
-{
-    if(chart->hot_set_ix >= 0  &&  chart->hot_i >= 0) {
-        chart_data_t* data;
-        WCHAR val_str[CHART_STR_VALUE_MAX_LEN];
-        int val;
-
-        data = DSA_ITEM(&chart->data, chart->hot_set_ix, chart_data_t);
-
-        val = chart_value(chart, chart->hot_set_ix, chart->hot_i);
-        chart_str_value(axis, val, val_str);
-
-        _sntprintf(buffer, bufsize, _T("%ls: %ls"), data->name, val_str);
-        buffer[bufsize - 1] = _T('\0');
-    }
-}
-
 
 /*******************
  *** Value Cache ***
@@ -641,12 +622,6 @@ pie_hit_test(chart_t* chart, const chart_layout_t* layout,
 
         angle += sweep;
     }
-}
-
-static inline void
-pie_tooltip_text(chart_t* chart, TCHAR* buffer, UINT bufsize)
-{
-    chart_tooltip_text_common(chart, &chart->axis1, buffer, bufsize);
 }
 
 
@@ -1271,28 +1246,6 @@ scatter_hit_test(chart_t* chart, const chart_layout_t* layout,
     CACHE_FINI(&cache);
 }
 
-static void
-scatter_tooltip_text(chart_t* chart, TCHAR* buffer, UINT bufsize)
-{
-    if(chart->hot_set_ix >= 0  &&  chart->hot_i >= 0) {
-        chart_data_t* data;
-        int x, y;
-        WCHAR x_str[CHART_STR_VALUE_MAX_LEN];
-        WCHAR y_str[CHART_STR_VALUE_MAX_LEN];
-
-        data = DSA_ITEM(&chart->data, chart->hot_set_ix, chart_data_t);
-
-        x = chart_value(chart, chart->hot_set_ix, chart->hot_i);
-        y = chart_value(chart, chart->hot_set_ix, chart->hot_i+1);
-
-        chart_str_value(&chart->axis1, x, x_str);
-        chart_str_value(&chart->axis2, y, y_str);
-
-        _sntprintf(buffer, bufsize, _T("%ls: (%ls, %ls)"), data->name, x_str, y_str);
-        buffer[bufsize-1] = _T('\0');
-    }
-}
-
 
 /*************************
  *** Line & Area Chart ***
@@ -1506,12 +1459,6 @@ line_hit_test(chart_t* chart, BOOL is_stacked, const chart_layout_t* layout,
     CACHE_FINI(&cache);
 }
 
-static inline void
-line_tooltip_text(chart_t* chart, TCHAR* buffer, UINT bufsize)
-{
-    chart_tooltip_text_common(chart, &chart->axis2, buffer, bufsize);
-}
-
 
 /********************
  *** Column Chart ***
@@ -1654,12 +1601,6 @@ out:
     CACHE_FINI(&cache);
 }
 
-static inline void
-column_tooltip_text(chart_t* chart, TCHAR* buffer, UINT bufsize)
-{
-    chart_tooltip_text_common(chart, &chart->axis2, buffer, bufsize);
-}
-
 
 /*****************
  *** Bar Chart ***
@@ -1783,12 +1724,6 @@ bar_hit_test(chart_t* chart, BOOL is_stacked, chart_layout_t* layout,
 
 out:
     CACHE_FINI(&cache);
-}
-
-static inline void
-bar_tooltip_text(chart_t* chart, TCHAR* buffer, UINT bufsize)
-{
-    chart_tooltip_text_common(chart, &chart->axis2, buffer, bufsize);
 }
 
 
@@ -2127,55 +2062,91 @@ chart_hit_test(chart_t* chart, int x, int y, int* set_ix, int* i)
 }
 
 static void
-chart_update_tooltip(chart_t* chart)
+chart_update_hottracking(chart_t* chart)
 {
-    TCHAR buffer[256];
+    const DWORD chart_type = chart->style & MC_CHS_TYPEMASK;
+    const BOOL tracking_item = chart->hot_set_ix >= 0  &&  chart->hot_i >= 0;
+    BOOL allow_tooltip;
 
-    if(chart->tooltip_win == NULL)
-        return;
+    /* Fill in a MC_NMCHHOTTRACK structure that contains information about
+     * the currently hot-tracked item (or lack thereof). */
+    TCHAR x_str[CHART_STR_VALUE_MAX_LEN];
+    TCHAR y_str[CHART_STR_VALUE_MAX_LEN];
+    WCHAR temp_str[CHART_STR_VALUE_MAX_LEN];
+    MC_NMCHHOTTRACK info;
+    info.hdr.hwndFrom = chart->win;
+    info.hdr.idFrom = GetWindowLong(chart->win, GWL_ID);
+    info.hdr.code = MC_CHN_HOTTRACK;
+    info.pszValue = NULL;
+    info.pszValueY = NULL;
+    info.pszDataSet = NULL;
+    info.clrDataSet = CLR_INVALID;
+    info.iDataSet = -1;
+    if(tracking_item) {
+        const chart_data_t* const data = DSA_ITEM(&chart->data, chart->hot_set_ix, chart_data_t);
 
-    buffer[0] = _T('\0');
-
-    if(chart->hot_set_ix >= 0) {
-        switch(chart->style & MC_CHS_TYPEMASK) {
-            case MC_CHS_PIE:
-                pie_tooltip_text(chart, buffer, MC_SIZEOF_ARRAY(buffer));
-                break;
-
-            case MC_CHS_SCATTER:
-                scatter_tooltip_text(chart, buffer, MC_SIZEOF_ARRAY(buffer));
-                break;
-
-            case MC_CHS_LINE:
-            case MC_CHS_STACKEDLINE:
-            case MC_CHS_AREA:
-            case MC_CHS_STACKEDAREA:
-                line_tooltip_text(chart, buffer, MC_SIZEOF_ARRAY(buffer));
-                break;
-
-            case MC_CHS_COLUMN:
-            case MC_CHS_STACKEDCOLUMN:
-                column_tooltip_text(chart, buffer, MC_SIZEOF_ARRAY(buffer));
-                break;
-
-            case MC_CHS_BAR:
-            case MC_CHS_STACKEDBAR:
-                bar_tooltip_text(chart, buffer, MC_SIZEOF_ARRAY(buffer));
-                break;
+        int val = chart_value(chart, chart->hot_set_ix, chart->hot_i);
+        chart_str_value((chart_type == MC_CHS_SCATTER ||
+                         chart_type == MC_CHS_CONNECTEDSCATTER ||
+                         chart_type == MC_CHS_PIE)
+                         ? &chart->axis1
+                         : &chart->axis2,
+                        val,
+                        temp_str);
+        mc_str_inbuf(temp_str, MC_STRW, x_str, MC_STRT, MC_SIZEOF_ARRAY(x_str));
+        info.pszValue = x_str;
+        if(chart_type == MC_CHS_SCATTER) {
+            val = chart_value(chart, chart->hot_set_ix, chart->hot_i+1);
+            chart_str_value(&chart->axis2, val, temp_str);
+            mc_str_inbuf(temp_str, MC_STRW, y_str, MC_STRT, MC_SIZEOF_ARRAY(y_str));
+            info.pszValueY = y_str;
         }
+
+        info.pszDataSet = data->name;
+        info.clrDataSet = chart_data_color(chart, chart->hot_set_ix);;
+        info.iDataSet = chart->hot_set_ix;
     }
 
-    if(buffer[0] != _T('\0')) {
-        tooltip_update_text(chart->tooltip_win, chart->win, buffer);
+    /* Send a notification message to the parent window with the information
+     * about the currently hot-tracked item (or lack thereof). A non-default
+     * (non-zero) return value indicates that they wish to suppress display
+     * of the automatic tooltip. */
+    allow_tooltip = !MC_SEND(chart->notify_win, WM_NOTIFY, info.hdr.idFrom, &info);
 
-        if(!chart->tooltip_active) {
-            tooltip_show_tracking(chart->tooltip_win, chart->win, TRUE);
-            chart->tooltip_active = TRUE;
-        }
-    } else {
-        if(chart->tooltip_active) {
-            tooltip_show_tracking(chart->tooltip_win, chart->win, FALSE);
-            chart->tooltip_active = FALSE;
+    /* If we are managing tooltips ourselves... */
+    if(chart->tooltip_win) {
+        if(tracking_item  &&  allow_tooltip) {
+            /* If there is a hot-tracked item and the parent didn't suppress
+             * display of the automatic tooltip, build a string using the
+             * information about the item and update the tooltip's text. */
+            TCHAR buffer[256];
+            buffer[0] = _T('\0');
+            if(chart_type == MC_CHS_SCATTER) {
+               _sntprintf(buffer, MC_SIZEOF_ARRAY(buffer),
+                          _T("%s: (%s, %s)"),
+                          info.pszDataSet, info.pszValue, info.pszValueY);
+            } else {
+               _sntprintf(buffer, MC_SIZEOF_ARRAY(buffer),
+                          _T("%s: %s"),
+                          info.pszDataSet, info.pszValue);
+            }
+            buffer[MC_SIZEOF_ARRAY(buffer) - 1] = _T('\0');
+            tooltip_update_text(chart->tooltip_win, chart->win, buffer);
+
+            /* If the tooltip is not already active, then show it. */
+            if(!chart->tooltip_active) {
+                tooltip_show_tracking(chart->tooltip_win, chart->win, TRUE);
+                chart->tooltip_active = TRUE;
+            }
+        } else {
+            /* Otherwise, whether because there is no hot-tracked item to
+             * display information about or because the parent suppressed
+             * display of the automatic tooltip, hide the tooltip if it
+             * is active. */
+            if(chart->tooltip_active) {
+               tooltip_show_tracking(chart->tooltip_win, chart->win, FALSE);
+               chart->tooltip_active = FALSE;
+            }
         }
     }
 }
@@ -2198,7 +2169,7 @@ chart_mouse_move(chart_t* chart, int x, int y)
     if(chart->hot_set_ix != set_ix  ||  chart->hot_i != i) {
         chart->hot_set_ix = set_ix;
         chart->hot_i = i;
-        chart_update_tooltip(chart);
+        chart_update_hottracking(chart);
 
         if(!chart->no_redraw)
             xd2d_invalidate(chart->win, NULL, TRUE, &chart->xd2d_cache);
@@ -2228,7 +2199,7 @@ chart_mouse_leave(chart_t* chart)
     if(chart->hot_set_ix != -1  ||  chart->hot_i != -1) {
         chart->hot_set_ix = -1;
         chart->hot_i = -1;
-        chart_update_tooltip(chart);
+        chart_update_hottracking(chart);
 
         if(!chart->no_redraw)
             xd2d_invalidate(chart->win, NULL, TRUE, &chart->xd2d_cache);
@@ -2247,7 +2218,7 @@ chart_setup_hot(chart_t* chart)
         chart->hot_i = -1;
     }
 
-    chart_update_tooltip(chart);
+    chart_update_hottracking(chart);
 }
 
 static int

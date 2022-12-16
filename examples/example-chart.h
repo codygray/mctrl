@@ -22,6 +22,7 @@
 #define IDC_CHART_STACKEDAREA     106
 #define IDC_CHART_STACKEDCOLUMN   107
 #define IDC_CHART_STACKEDBAR      108
+#define IDC_CHART_STATUS          109
 
 
 #endif  /* EXAMPLE_CHART_H */
