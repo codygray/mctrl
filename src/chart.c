@@ -285,12 +285,17 @@ chart_tooltip_text_common(chart_t* chart, chart_axis_t* axis,
                           TCHAR* buffer, UINT bufsize)
 {
     if(chart->hot_set_ix >= 0  &&  chart->hot_i >= 0) {
+        chart_data_t* data;
         WCHAR val_str[CHART_STR_VALUE_MAX_LEN];
         int val;
 
+        data = DSA_ITEM(&chart->data, chart->hot_set_ix, chart_data_t);
+
         val = chart_value(chart, chart->hot_set_ix, chart->hot_i);
         chart_str_value(axis, val, val_str);
-        mc_str_inbuf(val_str, MC_STRW, buffer, MC_STRT, bufsize);
+
+        _sntprintf(buffer, bufsize, _T("%ls: %ls"), data->name, val_str);
+        buffer[bufsize - 1] = _T('\0');
     }
 }
 
@@ -1270,9 +1275,12 @@ static void
 scatter_tooltip_text(chart_t* chart, TCHAR* buffer, UINT bufsize)
 {
     if(chart->hot_set_ix >= 0  &&  chart->hot_i >= 0) {
+        chart_data_t* data;
         int x, y;
         WCHAR x_str[CHART_STR_VALUE_MAX_LEN];
         WCHAR y_str[CHART_STR_VALUE_MAX_LEN];
+
+        data = DSA_ITEM(&chart->data, chart->hot_set_ix, chart_data_t);
 
         x = chart_value(chart, chart->hot_set_ix, chart->hot_i);
         y = chart_value(chart, chart->hot_set_ix, chart->hot_i+1);
@@ -1280,7 +1288,7 @@ scatter_tooltip_text(chart_t* chart, TCHAR* buffer, UINT bufsize)
         chart_str_value(&chart->axis1, x, x_str);
         chart_str_value(&chart->axis2, y, y_str);
 
-        _sntprintf(buffer, bufsize, _T("(%ls, %ls)"), x_str, y_str);
+        _sntprintf(buffer, bufsize, _T("%ls: (%ls, %ls)"), data->name, x_str, y_str);
         buffer[bufsize-1] = _T('\0');
     }
 }
