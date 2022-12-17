@@ -53,6 +53,15 @@ static const TCHAR chart_wc[] = MC_WC_CHART;    /* Window class name */
 #define CHART_STR_VALUE_MAX_LEN       32
 
 
+static const c_D2D1_COLOR_F color_grayed_fill = XD2D_COLOR_RGBA(191, 191, 191, 63);
+static const c_D2D1_COLOR_F color_grayed_text = XD2D_COLOR_RGBA(0, 0, 0, 63);
+static const c_D2D1_COLOR_F color_gridlines = XD2D_COLOR_RGB(191, 191, 191);
+static const c_D2D1_COLOR_F color_axes = XD2D_COLOR_RGB(0, 0, 0);
+static const c_D2D1_COLOR_F color_axes_labels = XD2D_COLOR_RGB(0, 0, 0);
+static const c_D2D1_COLOR_F color_axes_text = XD2D_COLOR_RGB(95, 95, 95);
+static const c_D2D1_COLOR_F color_legend_text = XD2D_COLOR_RGB(0, 0, 0);
+
+
 typedef struct chart_axis_tag chart_axis_t;
 struct chart_axis_tag {
     TCHAR* name;
@@ -63,6 +72,7 @@ struct chart_axis_tag {
 
 typedef struct chart_data_tag chart_data_t;
 struct chart_data_tag {
+    BOOL grayed;
     TCHAR* name;
     COLORREF color;
     UINT count;
@@ -162,13 +172,47 @@ chart_data_dtor(dsa_t* dsa, void* item)
 }
 
 static inline COLORREF
-chart_data_color(chart_t* chart, int set_ix)
+chart_data_color_base(chart_t* chart, int set_ix)
 {
     chart_data_t* data = DSA_ITEM(&chart->data, set_ix, chart_data_t);
     if(data->color == MC_CLR_DEFAULT)
         return color_seq(set_ix);
     else
         return data->color;
+}
+
+static inline c_D2D1_COLOR_F
+chart_data_color(chart_t* chart, int set_ix)
+{
+    chart_data_t* data = DSA_ITEM(&chart->data, set_ix, chart_data_t);
+    if(!data->grayed) {
+        c_D2D1_COLOR_F c;
+        xd2d_color_set_cref(&c, chart_data_color_base(chart, set_ix));
+        return c;
+    } else {
+        return color_grayed_fill;
+    }
+}
+
+static inline c_D2D1_COLOR_F
+chart_data_color_aura(chart_t* chart, int set_ix)
+{
+    c_D2D1_COLOR_F c;
+    xd2d_color_set_cref(&c, color_hint(chart_data_color_base(chart, set_ix)));
+    return c;
+}
+
+static inline c_D2D1_COLOR_F
+chart_data_color_label(chart_t* chart, int set_ix)
+{
+    chart_data_t* data = DSA_ITEM(&chart->data, set_ix, chart_data_t);
+    if(!data->grayed) {
+        c_D2D1_COLOR_F c;
+        xd2d_color_set_cref(&c, color_with_contrast(chart_data_color_base(chart, set_ix)));
+        return c;
+    } else {
+        return color_grayed_text;
+    }
 }
 
 static void
@@ -438,6 +482,7 @@ pie_calc_geometry(chart_t* chart, const chart_layout_t* layout, pie_geometry_t* 
 static void
 pie_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_layout_t* layout)
 {
+    COLORREF back_color = GetSysColor(COLOR_WINDOW);
     c_ID2D1RenderTarget* rt = ctx->ctx.rt;
     pie_geometry_t geom;
     int set_ix, n, val;
@@ -450,13 +495,11 @@ pie_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_layout_t* layout)
     for(set_ix = 0; set_ix < n; set_ix++) {
         c_ID2D1PathGeometry* path;
         c_ID2D1GeometrySink* path_sink;
-        COLORREF cref;
         c_D2D1_ARC_SEGMENT arc;
         c_D2D1_COLOR_F c;
         float angle_cos, angle_sin;
         float sweep_cos, sweep_sin;
 
-        cref = chart_data_color(chart, set_ix);
         val = pie_value(chart, set_ix);
         sweep = (360.0f * (float) val) / geom.sum;
 
@@ -489,7 +532,7 @@ pie_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_layout_t* layout)
             c_ID2D1GeometrySink_Close(path_sink);
             c_ID2D1GeometrySink_Release(path_sink);
 
-            xd2d_color_set_cref(&c, cref);
+            c = chart_data_color(chart, set_ix);
             c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
             c_ID2D1RenderTarget_FillGeometry(rt, (c_ID2D1Geometry*) path,
@@ -515,7 +558,7 @@ pie_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_layout_t* layout)
                 c_ID2D1GeometrySink_Close(path_sink);
                 c_ID2D1GeometrySink_Release(path_sink);
 
-                xd2d_color_set_cref(&c, color_hint(cref));
+                c = chart_data_color_aura(chart, set_ix);
                 c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
                 c_ID2D1RenderTarget_DrawGeometry(rt, (c_ID2D1Geometry*) path,
@@ -524,11 +567,11 @@ pie_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_layout_t* layout)
             }
         }
 
-        /* Paint white borders */
+        /* Paint borders (using the background color) */
         {
             c_D2D1_POINT_2F pt0, pt1;
 
-            xd2d_color_set_cref(&c, GetSysColor(COLOR_WINDOW));
+            xd2d_color_set_cref(&c, back_color);
             c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
             pt0.x = geom.cx;
@@ -572,7 +615,7 @@ pie_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_layout_t* layout)
                    pie_pt_in_sweep(angle, sweep, geom.cx, geom.cy, pt.x + dw, pt.y - dh)  &&
                    pie_pt_in_sweep(angle, sweep, geom.cx, geom.cy, pt.x + dw, pt.y + dh))
                 {
-                    xd2d_color_set_rgb(&c, 255, 255, 255);
+                    c = chart_data_color_label(chart, set_ix);
                     c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
                     c_ID2D1RenderTarget_DrawTextLayout(rt, pt, text_layout,
@@ -1011,7 +1054,7 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const grid_layout_t* gl)
         ya = &chart->axis2;
     }
 
-    xd2d_color_set_rgb(&c, 95, 95, 95);
+    c = color_axes_text;
     c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
     /* Paint X-axis name. */
@@ -1046,7 +1089,7 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const grid_layout_t* gl)
     }
 
     /* Paint grid lines. */
-    xd2d_color_set_rgb(&c, 191, 191, 191);
+    c = color_gridlines;
     c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
     if(gl->x_axis.type != GRID_AXIS_CATEGORY  &&  !xa->suppress_gridlines) {
         for(v = gl->x_axis.grid_base; v <= gl->x_axis.max_value; v += gl->x_axis.grid_delta) {
@@ -1068,7 +1111,7 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const grid_layout_t* gl)
     }
 
     /* Paint primary lines (axis) */
-    xd2d_color_set_rgb(&c, 0, 0, 0);
+    c = color_axes;
     c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
     if(gl->x_axis.type != GRID_AXIS_CATEGORY) {
         if(gl->x_axis.min_value <= -xa->offset  &&  -xa->offset <= gl->x_axis.max_value) {
@@ -1088,6 +1131,9 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const grid_layout_t* gl)
             c_ID2D1RenderTarget_DrawLine(rt, pt0, pt1, (c_ID2D1Brush*) ctx->solid_brush, 1.0f, NULL);
         }
     }
+
+    c = color_axes_labels;
+    c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
     /* Paint X-axis labels */
     if(gl->x_axis.type != GRID_AXIS_CATEGORY)
@@ -1163,7 +1209,7 @@ scatter_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_layout_t* layou
         set_ix = chart->hot_set_ix;
         data = DSA_ITEM(&chart->data, set_ix, chart_data_t);
 
-        xd2d_color_set_cref(&c, color_hint(chart_data_color(chart, set_ix)));
+        c = chart_data_color_aura(chart, set_ix);
         c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
         if(chart->hot_i >= 0) {
@@ -1190,7 +1236,7 @@ scatter_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_layout_t* layou
     for(set_ix = 0; set_ix < n; set_ix++) {
         data = DSA_ITEM(&chart->data, set_ix, chart_data_t);
 
-        xd2d_color_set_cref(&c, chart_data_color(chart, set_ix));
+        c = chart_data_color(chart, set_ix);
         c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
         for(i = 0; i < data->count-1; i += 2) {  /* '-1' to protect if ->count is odd */
@@ -1253,7 +1299,6 @@ line_paint_area(chart_t* chart, cache_t* cache, int set_ix, BOOL is_stacked,
     c_ID2D1PathGeometry* path;
     c_ID2D1GeometrySink* sink;
     c_D2D1_POINT_2F pt;
-    BYTE alpha;
     c_D2D1_COLOR_F c;
     int x0, x1, x, y;
 
@@ -1262,11 +1307,9 @@ line_paint_area(chart_t* chart, cache_t* cache, int set_ix, BOOL is_stacked,
     if(x1 < 1)
         return;
 
-    if(set_ix == chart->hot_set_ix)
-        alpha = 63;
-    else
-        alpha = 31;
-    xd2d_color_set_crefa(&c, chart_data_color(chart, set_ix), alpha);
+    c = chart_data_color(chart, set_ix);
+    if(c.a >= 1.0f)
+        c.a = ((set_ix == chart->hot_set_ix) ? 63 : 31) / 255.0f;
     c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
     path = xd2d_CreatePathGeometry(&sink);
@@ -1328,14 +1371,14 @@ line_paint_lines(chart_t* chart, cache_t* cache, int set_ix, BOOL is_stacked,
             x0 = 0;
             x1 = DSA_ITEM(&chart->data, set_ix, chart_data_t)->count;
         }
-        xd2d_color_set_cref(&c, color_hint(chart_data_color(chart, set_ix)));
+        c = chart_data_color_aura(chart, set_ix);
         e.radiusX = 4.0f;
         e.radiusY = 4.0f;
         line_width = 3.5f;
     } else {
         x0 = 0;
         x1 = DSA_ITEM(&chart->data, set_ix, chart_data_t)->count;
-        xd2d_color_set_cref(&c, chart_data_color(chart, set_ix));
+        c = chart_data_color(chart, set_ix);
         e.radiusX = 2.0f;
         e.radiusY = 2.0f;
         line_width = 1.0f;
@@ -1496,7 +1539,7 @@ column_paint(chart_t* chart, BOOL is_stacked, chart_xd2d_ctx_t* ctx,
     chart_data_t* data;
     c_D2D1_RECT_F r;
     c_D2D1_POINT_2F pt0, pt1;
-    c_D2D1_COLOR_F c, c_full;
+    c_D2D1_COLOR_F c_full, c_aura, c;
 
     CACHE_INIT(&cache, chart);
 
@@ -1508,17 +1551,22 @@ column_paint(chart_t* chart, BOOL is_stacked, chart_xd2d_ctx_t* ctx,
     n = dsa_size(&chart->data);
     for(set_ix = 0; set_ix < n; set_ix++) {
         data = DSA_ITEM(&chart->data, set_ix, chart_data_t);
-        xd2d_color_set_cref(&c_full, chart_data_color(chart, set_ix));
-        xd2d_color_set_crefa(&c, chart_data_color(chart, set_ix), 175);
+
+        c_full = chart_data_color(chart, set_ix);
+        c_aura = chart_data_color_aura(chart, set_ix);
+        c = c_full;
+        c.a = 175 / 255.0f;
 
         r.left = gl.x_axis.coord0 + cl.col0_offset;
         if(!is_stacked)
             r.left += set_ix * cl.col_delta;
         for(i = 0; i < data->count; i++) {
             if(set_ix == chart->hot_set_ix  &&  (i == chart->hot_i || chart->hot_i < 0))
-                c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c_full);
+                c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, !data->grayed ? &c_full
+                                                                                : &c_aura);
             else
-                c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
+                c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, !data->grayed ? &c
+                                                                                : &c_full);
             r.right = r.left + cl.col_width;
             if(!is_stacked  ||  set_ix == 0) {
                 r.top = grid_map_y(CACHE_VALUE(&cache, set_ix, i), &gl);
@@ -1621,7 +1669,7 @@ bar_paint(chart_t* chart, BOOL is_stacked, chart_xd2d_ctx_t* ctx,
     chart_data_t* data;
     c_D2D1_RECT_F r;
     c_D2D1_POINT_2F pt0, pt1;
-    c_D2D1_COLOR_F c, c_full;
+    c_D2D1_COLOR_F c_full, c_aura, c;
 
     CACHE_INIT(&cache, chart);
 
@@ -1633,17 +1681,22 @@ bar_paint(chart_t* chart, BOOL is_stacked, chart_xd2d_ctx_t* ctx,
     n = dsa_size(&chart->data);
     for(set_ix = 0; set_ix < n; set_ix++) {
         data = DSA_ITEM(&chart->data, set_ix, chart_data_t);
-        xd2d_color_set_cref(&c_full, chart_data_color(chart, set_ix));
-        xd2d_color_set_crefa(&c, chart_data_color(chart, set_ix), 175);
+
+        c_full = chart_data_color(chart, set_ix);
+        c_aura = chart_data_color_aura(chart, set_ix);
+        c = c_full;
+        c.a = 175 / 255.0f;
 
         r.bottom = gl.y_axis.coord1 - bl.col0_offset;
         if(!is_stacked)
             r.bottom -= (n-1 - set_ix) * bl.col_delta;
         for(i = 0; i < data->count; i++) {
             if(set_ix == chart->hot_set_ix  &&  (i == chart->hot_i || chart->hot_i < 0))
-                c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c_full);
+                c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, !data->grayed ? &c_full
+                                                                                : &c_aura);
             else
-                c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
+                c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, !data->grayed ? &c
+                                                                                : &c_full);
             r.top = r.bottom - bl.col_width;
             if(!is_stacked  ||  set_ix == 0) {
                 r.left = grid_map_x(0, &gl);
@@ -1774,7 +1827,7 @@ legend_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_layout_t* layout
                     XDWRITE_ALIGN_LEFT | XDWRITE_VALIGN_TOP);
         if(text_layout == NULL)
             continue;
-        xd2d_color_set_rgb(&c, 0, 0, 0);
+        c = color_legend_text;
         c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
         pt.x = label_rect.left;
         pt.y = label_rect.top;
@@ -1786,7 +1839,7 @@ legend_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_layout_t* layout
         /* Paint legend color */
         color_rect.bottom = floorf(label_rect.top + line_metrics[0].baseline);
         color_rect.top = color_rect.bottom - color_size;
-        xd2d_color_set_cref(&c, chart_data_color(chart, set_ix));
+        c = chart_data_color(chart, set_ix);
         c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
         c_ID2D1RenderTarget_FillRectangle(rt, &color_rect, (c_ID2D1Brush*) ctx->solid_brush);
         c_ID2D1RenderTarget_DrawRectangle(rt, &color_rect, (c_ID2D1Brush*) ctx->solid_brush, 1.0f, NULL);
@@ -1795,7 +1848,7 @@ legend_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_layout_t* layout
         if(set_ix == chart->hot_set_ix) {
             c_D2D1_RECT_F aura_rect = { color_rect.left - 2.5f, color_rect.top - 2.5f,
                                         color_rect.right + 2.5f, color_rect.bottom + 2.5f };
-            xd2d_color_set_cref(&c, color_hint(chart_data_color(chart, set_ix)));
+            c = chart_data_color_aura(chart, set_ix);
             c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
             c_ID2D1RenderTarget_DrawRectangle(rt, &aura_rect, (c_ID2D1Brush*) ctx->solid_brush, 2.0f, NULL);
         }
@@ -1923,10 +1976,11 @@ chart_paint(void* ctrl, xd2d_ctx_t* raw_ctx)
     c_ID2D1RenderTarget* rt = ctx->ctx.rt;
     chart_layout_t layout;
     c_D2D1_MATRIX_3X2_F matrix;
-	DWORD type;
+    c_D2D1_COLOR_F c;
+    DWORD type;
 
     if(ctx->ctx.erase) {
-        c_D2D1_COLOR_F c = XD2D_COLOR_CREF(GetSysColor(COLOR_WINDOW));
+        xd2d_color_set_cref(&c, GetSysColor(COLOR_WINDOW));
         c_ID2D1RenderTarget_Clear(rt, &c);
     }
 
@@ -1949,9 +2003,9 @@ chart_paint(void* ctrl, xd2d_ctx_t* raw_ctx)
                     mc_width(&layout.title_rect), mc_height(&layout.title_rect),
                     XDWRITE_ALIGN_CENTER | XDWRITE_NOWRAP | XDWRITE_ELLIPSIS_END);
         if(text_layout != NULL) {
-            c_D2D1_COLOR_F c = XD2D_COLOR_RGB(0,0,0);
             c_D2D1_POINT_2F pt = { layout.title_rect.left, layout.title_rect.top };
             c_DWRITE_TEXT_RANGE range = { 0, len };
+            c = color_axes_labels;
 
             c_IDWriteTextLayout_SetFontWeight(text_layout, FW_MEDIUM, range);
             c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
@@ -2097,7 +2151,7 @@ chart_update_hottracking(chart_t* chart)
         }
 
         info.pszDataSet = data->name;
-        info.clrDataSet = chart_data_color(chart, chart->hot_set_ix);;
+        info.clrDataSet = chart_data_color_base(chart, chart->hot_set_ix);;
         info.iDataSet = chart->hot_set_ix;
     }
 
@@ -2201,6 +2255,36 @@ chart_mouse_leave(chart_t* chart)
 }
 
 static void
+chart_mouse_click(chart_t* chart, BOOL right_btn, int x, int y)
+{
+    int set_ix_clicked, i_clicked;
+
+    if(!IsWindowEnabled(chart->win)  ||  !(chart->style & MC_CHS_INTERACTIVELEGEND))
+        return;
+
+    chart_hit_test(chart, x, y, &set_ix_clicked, &i_clicked);
+
+    if(set_ix_clicked >= 0  &&  i_clicked < 0) {
+        if(!right_btn) {
+            /* Toggle the data set that was clicked. */
+            chart_data_t* data = DSA_ITEM(&chart->data, set_ix_clicked, chart_data_t);
+            data->grayed = !data->grayed;
+        } else {
+            /* Show only the data set that was clicked, graying-out all others. */
+            const int set_n = dsa_size(&chart->data);
+            int set_ix;
+            for(set_ix = 0; set_ix < set_n; set_ix++) {
+                DSA_ITEM(&chart->data, set_ix, chart_data_t)->grayed = TRUE;
+            }
+            DSA_ITEM(&chart->data, set_ix_clicked, chart_data_t)->grayed = FALSE;
+        }
+
+        if(!chart->no_redraw)
+            xd2d_invalidate(chart->win, NULL, TRUE, &chart->xd2d_cache);
+    }
+}
+
+static void
 chart_setup_hot(chart_t* chart)
 {
     if(IsWindowEnabled(chart->win)) {
@@ -2255,6 +2339,7 @@ chart_insert_dataset(chart_t* chart, int set_ix, MC_CHDATASET* dataset)
         return -1;
     }
 
+    data->grayed = FALSE;
     data->name = NULL;
     data->color = MC_CLR_DEFAULT;
     data->count = dataset->dwCount;
@@ -2649,7 +2734,6 @@ static void
 chart_style_changed(chart_t* chart, STYLESTRUCT* ss)
 {
     if((chart->style & MC_CHS_NOTOOLTIPS) != (ss->styleNew & MC_CHS_NOTOOLTIPS)) {
-
         if(!(ss->styleNew & MC_CHS_NOTOOLTIPS)) {
             chart->tooltip_win = tooltip_create(chart->win, chart->notify_win, TRUE,
                                                 (ss->styleNew & MC_CHS_BALLOONTIPS));
@@ -2657,6 +2741,15 @@ chart_style_changed(chart_t* chart, STYLESTRUCT* ss)
             tooltip_destroy(chart->tooltip_win);
             chart->tooltip_win = NULL;
             chart->tooltip_active = FALSE;
+        }
+    }
+
+    if(!(ss->styleNew & MC_CHS_INTERACTIVELEGEND)) {
+        /* Clear all states set by user interactivity. */
+        const int set_n = dsa_size(&chart->data);
+        int set_ix;
+        for(set_ix = 0; set_ix < set_n; set_ix++) {
+            DSA_ITEM(&chart->data, set_ix, chart_data_t)->grayed = FALSE;
         }
     }
 
@@ -2786,6 +2879,14 @@ chart_proc(HWND win, UINT msg, WPARAM wp, LPARAM lp)
 
         case WM_MOUSELEAVE:
             chart_mouse_leave(chart);
+            return 0;
+
+        case WM_LBUTTONUP:
+           chart_mouse_click(chart, FALSE, GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
+            return 0;
+
+        case WM_RBUTTONUP:
+           chart_mouse_click(chart, TRUE, GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
             return 0;
 
         case MC_CHM_GETDATASETCOUNT:

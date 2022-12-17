@@ -30,5 +30,9 @@ COLORREF color_seq(UINT index);
 
 COLORREF color_hint(COLORREF color);
 
+BOOL color_is_dark(COLORREF color);
+
+COLORREF color_with_contrast(COLORREF color);
+
 
 #endif  /* MC_COLOR_H */

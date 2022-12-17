@@ -225,14 +225,14 @@ void MCTRL_API mcChart_Terminate(void);
  *
  * @sa MC_CHM_SETTOOLTIPS
  */
-#define MC_CHS_NOTOOLTIPS      0x0040
+#define MC_CHS_NOTOOLTIPS          0x0040
 
 /**
  * @brief Enable painting with double buffering.
  *
  * It prevents flickering when the control is being continuously resized.
  */
-#define MC_CHS_DOUBLEBUFFER   0x0080
+#define MC_CHS_DOUBLEBUFFER        0x0080
 
 /**
  * @brief Display balloon-style tooltips.
@@ -244,7 +244,17 @@ void MCTRL_API mcChart_Terminate(void);
  *
  * @sa MC_CHS_NOTOOLTIPS
  */
-#define MC_CHS_BALLOONTIPS    0x0100
+#define MC_CHS_BALLOONTIPS         0x0100
+
+/**
+ * @brief Enable user interaction with the legend.
+ *
+ * This style allows the user to click on items (data sets) displayed in
+ * the legend to alter their appearance in the chart. For example, if
+ * an item in the legend is clicked, the appearance of the corresponding
+ * data set in the chart will toggle between grayed-out and normal.
+ */
+#define MC_CHS_INTERACTIVELEGEND   0x0200
 
 /*@}*/
 

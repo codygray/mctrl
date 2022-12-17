@@ -73,3 +73,20 @@ color_hint(COLORREF color)
     hsluv2rgb(h, s, l, &r, &g, &b);
     return RGB(255.0 * r, 255.0 * g, 255.0 * b);
 }
+
+BOOL
+color_is_dark(COLORREF color)
+{
+    /* This implements the same algorithm that is used by Windows 10 to choose
+     * the title-bar text color based on the title-bar background color
+     * (and which used to be documented on MSDN). It could surely be improved,
+     * but it is reasonably accurate, very efficient, and certainly vastly
+     * better than nothing. */
+    return ((GetRValue(color) * 2) + (GetGValue(color) * 5) + (GetBValue(color))) <= 1024;
+}
+
+COLORREF
+color_with_contrast(COLORREF color)
+{
+    return color_is_dark(color) ? RGB(255, 255, 255) : RGB(0, 0, 0);
+}
