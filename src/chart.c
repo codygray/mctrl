@@ -171,22 +171,26 @@ chart_data_color(chart_t* chart, int set_ix)
         return data->color;
 }
 
-static int
-chart_value_from_parent(chart_t* chart, int set_ix, int i)
+static void
+chart_values_from_parent(chart_t* chart, int set_ix, int iFirst, int iLast, int* values)
 {
     MC_NMCHDISPINFO info;
-    int value;
-
     info.hdr.hwndFrom = chart->win;
     info.hdr.idFrom = GetWindowLong(chart->win, GWL_ID);
     info.hdr.code = MC_CHN_GETDISPINFO;
     info.fMask = MC_CHDIM_VALUES;
     info.iDataSet = set_ix;
-    info.iValueFirst = i;
-    info.iValueLast = i;
-    info.piValues = &value;
+    info.iValueFirst = iFirst;
+    info.iValueLast = iLast;
+    info.piValues = values;
     MC_SEND(chart->notify_win, WM_NOTIFY, info.hdr.idFrom, &info);
+}
 
+static int
+chart_value_from_parent(chart_t* chart, int set_ix, int i)
+{
+    int value;
+    chart_values_from_parent(chart, set_ix, i, i, &value);
     return value;
 }
 
@@ -305,17 +309,7 @@ cache_init_(cache_t* cache, int n)
         if(data->values != NULL) {
             cache->values[set_ix] = data->values;
         } else {
-            MC_NMCHDISPINFO info;
-
-            info.hdr.hwndFrom = cache->chart->win;
-            info.hdr.idFrom = GetWindowLong(info.hdr.hwndFrom, GWL_ID);
-            info.hdr.code = MC_CHN_GETDISPINFO;
-            info.fMask = MC_CHDIM_VALUES;
-            info.iDataSet = set_ix;
-            info.iValueFirst = 0;
-            info.iValueLast = data->count - 1;
-            info.piValues = values;
-            MC_SEND(cache->chart->notify_win, WM_NOTIFY, info.hdr.idFrom, &info);
+            chart_values_from_parent(cache->chart, set_ix, 0, data->count - 1, values);
 
             cache->values[set_ix] = values;
             values += data->count;
