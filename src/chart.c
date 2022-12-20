@@ -771,10 +771,11 @@ grid_calc_base_and_delta(grid_axis_t* axis, int min_pixels)
     }
 
     /* Difference of two orthogonal lines in neighborhood. */
-    axis->grid_delta = chart_round_value(
-                (min_pixels * (axis->max_value - axis->min_value))
-                / (int)(axis->coord1 - axis->coord0), TRUE);
-    axis->grid_delta = MC_MAX(axis->grid_delta, 1);
+    axis->grid_delta = chart_round_value((min_pixels * (axis->max_value - axis->min_value))
+                                         /
+                                         MC_MAX(1, (int)(axis->coord1 - axis->coord0)),
+                                         TRUE);
+    MC_ASSERT(axis->grid_delta >= 1);
 
     /* Value corresponding to the 1st visible lines. We choose it so that
      * (1) BASE >= min_value_x; and
@@ -2993,6 +2994,9 @@ chart_proc(HWND win, UINT msg, WPARAM wp, LPARAM lp)
             if(chart->xd2d_cache != NULL) {
                 c_D2D1_SIZE_U size = { LOWORD(lp), HIWORD(lp) };
                 c_ID2D1HwndRenderTarget_Resize((c_ID2D1HwndRenderTarget*) chart->xd2d_cache->rt, &size);
+                chart_setup_hot(chart);
+                if(!chart->no_redraw)
+                    xd2d_invalidate(chart->win, NULL, TRUE, &chart->xd2d_cache);
             }
             break;
 

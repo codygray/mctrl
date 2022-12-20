@@ -151,6 +151,52 @@ OnHotTrack(HWND hwndDlg, MC_NMCHHOTTRACK* pInfo)
    InvalidateRect(hwndStatus, NULL, TRUE);
 }
 
+static void
+OnSize(HWND hwndDlg, WPARAM nType, int cx, int cy)
+{
+    if(nType == SIZE_RESTORED  ||  nType == SIZE_MAXIMIZED) {
+        const int cxBorder = 12;
+        const int cyBorder = 13;
+
+        const int cxPadding = 7;
+        const int cyPadding = 7;
+
+        const int cyStatus = 23;
+
+        const int cxChart = (cx - (cxBorder * 2) - (cxPadding * 2)) / 3;
+        const int cyChart = (cy - (cyBorder * 2) - (cyPadding * 3) - cyStatus) / 3;
+
+        const int xChart1 = cxBorder;
+        const int xChart2 = xChart1 + cxChart + cxPadding;
+        const int xChart3 = xChart2 + cxChart + cxPadding;
+
+        const int yChart1 = cyBorder;
+        const int yChart2 = yChart1 + cyChart + cyPadding;
+        const int yChart3 = yChart2 + cyChart + cyPadding;
+
+        const UINT flags = SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOACTIVATE;
+
+        HDWP hdwp = BeginDeferWindowPos(10);
+        if(hdwp) {
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_PIE), NULL, xChart1, yChart1, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_SCATTER), NULL, xChart2, yChart1, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_LINE), NULL, xChart3, yChart1, cxChart, cyChart, flags);
+
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_AREA), NULL, xChart1, yChart2, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_COLUMN), NULL, xChart2, yChart2, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_BAR), NULL, xChart3, yChart2, cxChart, cyChart, flags);
+
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_STACKEDAREA), NULL, xChart1, yChart3, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_STACKEDCOLUMN), NULL, xChart2, yChart3, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_STACKEDBAR), NULL, xChart3, yChart3, cxChart, cyChart, flags);
+
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_STATUS), NULL, xChart1, yChart3 + cyChart + cyPadding, cx - (cxBorder * 2), cyStatus, flags);
+
+            EndDeferWindowPos(hdwp);
+        }
+    }
+}
+
 /* Main window procedure */
 static INT_PTR CALLBACK
 DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -170,6 +216,10 @@ DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             SetupCommonChart(GetDlgItem(hwndDlg, IDC_CHART_STACKEDCOLUMN));
             SetupCommonChart(GetDlgItem(hwndDlg, IDC_CHART_BAR));
             SetupCommonChart(GetDlgItem(hwndDlg, IDC_CHART_STACKEDBAR));
+            return TRUE;
+
+        case WM_SIZE:
+            OnSize(hwndDlg, wParam, LOWORD(lParam), HIWORD(lParam));
             return TRUE;
 
         case WM_CTLCOLORSTATIC:
