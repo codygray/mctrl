@@ -74,6 +74,10 @@ SetupScatterChart(HWND hwndChart)
     SendMessage(hwndChart, MC_CHM_INSERTDATASET, 1, (LPARAM) &dataSet);
     SendMessage(hwndChart, MC_CHM_SETDATASETLEGEND, 1, (LPARAM) _T("Females"));
     SendMessage(hwndChart, MC_CHM_SETDATASETCOLOR, 1, RGB(200,0,0));
+
+    SendMessage(hwndChart, MC_CHM_SETCOLORS,
+                /* foreground color: */ RGB( 85,  85, 170),
+                /* background color: */ RGB(255, 255, 215));
 }
 
 static void
