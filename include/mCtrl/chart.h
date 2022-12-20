@@ -224,6 +224,7 @@ void MCTRL_API mcChart_Terminate(void);
  * creates its own control when this style is not set.
  *
  * @sa MC_CHM_SETTOOLTIPS
+ * @sa MC_CHS_BALLOONTIPS
  */
 #define MC_CHS_NOTOOLTIPS          0x0040
 
@@ -363,6 +364,34 @@ typedef struct MC_NMCHHOTTRACK_tag {
      * If no item is hot-tracked, then this will be -1.
      */
     int iDataSet;
+    /**
+     * @brief Indicates whether the hot-tracked item's data set is grayed.
+     *
+     * If no item is hot-tracked, then this will be @c FALSE.
+     */
+    BOOL fDataSetGrayed;
+    /**
+     * @brief Indicates whether to suppress automatic display of a tooltip.
+     *
+     * Upon receipt of a @ref MC_CHN_HOTTRACK notification, the value of this
+     * field will reflect the default behavior. Thus, it will be set to
+     * @c TRUE if the control has the @ref MC_CHS_NOTOOLTIPS style, or no
+     * item is hot-tracked, or the hot-tracked item's data set is grayed;
+     * otherwise, it will be set to @c FALSE.
+     *
+     * When handling a @ref MC_CHN_HOTTRACK notification, the parent can
+     * override the control's default behavior by modifying this value.
+     * For example, the automatic display of a tooltip can be suppressed
+     * when it would normally be displayed by setting this value to @c TRUE.
+     * Or, as another example, the automatic display of a tooltip can be
+     * requested even though the hot-tracked item's data set is grayed
+     * by setting this value to @c FALSE.
+     *
+     * Note that if the control has the @ref MC_CHS_NOTOOLTIPS style and/or
+     * if no item is hot-tracked, a tooltip will never be displayed,
+     * regardless of the value of this field.
+     */
+    BOOL fSuppressTooltip;
 } MC_NMCHHOTTRACK;
 
 /*@}*/
@@ -700,27 +729,30 @@ typedef struct MC_NMCHHOTTRACK_tag {
 /**
  * @brief Fired when the user moves the mouse over (or off of) an item.
  *
- * This notification serves to inform the client that the user has moved the
+ * This notification serves to inform the parent that the user has moved the
  * mouse pointer over (or off of) an item in the chart. It is sent in the
  * form of a @c WM_NOTIFY message and provides detailed information about
- * the highlighted item.
+ * the hot-tracked item (or lack thereof).
  *
- * Assuming that the chart control does not have the @ref MC_CHS_NOTOOLTIPS
- * style set, this notification precedes the display of a tooltip control
- * that contains similar information. (Note that this notification is sent
- * even if the control does have the @ref MC_CHS_NOTOOLTIPS style set.)
- * Handling this notification allows the client to take some action
- * in addition to or instead of the default display of a tooltip;
- * for example, the client might want to display the same information in
- * a status bar. To suppress subsequent automatic display of a tooltip,
- * the client should return a non-zero value (any currently-displayed
- * tooltip will still be hidden).
+ * This notification is sent to the parent window prior to the automatic
+ * display of a tooltip that contains the same information. (Note that
+ * this notification is always sent, even if the control does not have
+ * a tooltip associated with it.) Therefore, handling this notification
+ * allows the parent to take some action in addition to or instead of
+ * the default display of a tooltip. For example, the parent might want
+ * to display the hot-tracking information in a status bar. If a tooltip
+ * is scheduled to be automatically displayed after the processing of
+ * this notification, the @ref MC_NMCHHOTTRACK::fSuppressTooltip field
+ * will be set to @c FALSE. By setting that field to @c TRUE, the parent
+ * can suppress the subsequent automatic display of a tooltip (any
+ * currently-displayed tooltip will still be hidden). Alternatively,
+ * by setting that field to @c FALSE, the parent can cause a tooltip
+ * to be automatically displayed even for a grayed data set.
  *
  * @param[in] wParam (@c int) Id of the control sending the notification.
  * @param[in,out] lParam (@ref MC_NMCHITEM*) Pointer to structure that
- * contains information about the highlighted data point.
- * @return Return a non-zero value to suppress subsequent automatic
- * display of a tooltip, or zero to allow normal processing.
+ * contains information about the hot-tracked data point.
+ * @return Ignored.
  */
 #define MC_CHN_HOTTRACK               (MC_CHN_FIRST + 1)
 

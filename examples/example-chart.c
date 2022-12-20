@@ -113,8 +113,8 @@ SetupCommonChart(HWND hwndChart)
     SendMessage(hwndChart, MC_CHM_SETDATASETLEGEND, 2, (LPARAM) _T("Greece"));
 }
 
-static LRESULT
-OnHotTrack(HWND hwndDlg, const MC_NMCHHOTTRACK* pInfo)
+static void
+OnHotTrack(HWND hwndDlg, MC_NMCHHOTTRACK* pInfo)
 {
    const HWND hwndStatus = GetDlgItem(hwndDlg, IDC_CHART_STATUS);
 
@@ -123,22 +123,23 @@ OnHotTrack(HWND hwndDlg, const MC_NMCHHOTTRACK* pInfo)
    szBuffer[0] = _T('\0');
 
    if(pInfo->pszValue) {
-       if(pInfo->pszValueY) {
+       if(pInfo->pszValueY)
            _sntprintf(szBuffer,
                       cchBuffer,
-                      _T("You are hovering over the point (%s, %s), representing \"%s\" (series #%d)."),
+                      _T("You are hovering over the %spoint (%s, %s), representing \"%s\" (series #%d)."),
+                      (pInfo->fDataSetGrayed ? _T("grayed ") : _T("")),
                       pInfo->pszValue,
                       pInfo->pszValueY,
                       pInfo->pszDataSet,
                       pInfo->iDataSet + 1);
-       } else {
+       else
            _sntprintf(szBuffer,
                       cchBuffer,
-                      _T("You are hovering over the value \"%s\", representing \"%s\" (series #%d)."),
+                      _T("You are hovering over the %svalue \"%s\", representing \"%s\" (series #%d)."),
+                      (pInfo->fDataSetGrayed ? _T("grayed ") : _T("")),
                       pInfo->pszValue,
                       pInfo->pszDataSet,
                       pInfo->iDataSet + 1);
-       }
        szBuffer[cchBuffer - 1] = _T('\0');
 
        clrStatus = pInfo->clrDataSet;
@@ -148,8 +149,6 @@ OnHotTrack(HWND hwndDlg, const MC_NMCHHOTTRACK* pInfo)
 
    SetWindowText(hwndStatus, szBuffer);
    InvalidateRect(hwndStatus, NULL, TRUE);
-
-   return 0;  /* or return non-zero to suppress the automatic tooltip */
 }
 
 /* Main window procedure */
@@ -159,7 +158,7 @@ DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     switch(uMsg) {
         case WM_CLOSE:
             EndDialog(hwndDlg, 0);
-            break;
+            return TRUE;
 
         case WM_INITDIALOG:
             SetupPieChart(GetDlgItem(hwndDlg, IDC_CHART_PIE));
@@ -185,21 +184,15 @@ DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case WM_NOTIFY:
             switch(((LPNMHDR)lParam)->code) {
                 case MC_CHN_HOTTRACK:
-                {
-                    const LRESULT result = OnHotTrack(hwndDlg, (MC_NMCHHOTTRACK*)lParam);
-                    SetWindowLongPtr(hwndDlg, DWLP_MSGRESULT, result);
+                    OnHotTrack(hwndDlg, (MC_NMCHHOTTRACK*)lParam);
                     return TRUE;
-                }
                 default:
-                    break;
+                    return FALSE;
             }
-            return FALSE;
 
         default:
             return FALSE;
     }
-
-    return TRUE;
 }
 
 

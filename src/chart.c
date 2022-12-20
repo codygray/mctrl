@@ -2129,7 +2129,6 @@ chart_update_hottracking(chart_t* chart)
 {
     const DWORD chart_type = chart->style & MC_CHS_TYPEMASK;
     const BOOL tracking_item = chart->hot_set_ix >= 0  &&  chart->hot_i >= 0;
-    BOOL allow_tooltip;
 
     /* Fill in a MC_NMCHHOTTRACK structure that contains information about
      * the currently hot-tracked item (or lack thereof). */
@@ -2145,6 +2144,7 @@ chart_update_hottracking(chart_t* chart)
     info.pszDataSet = NULL;
     info.clrDataSet = CLR_INVALID;
     info.iDataSet = -1;
+    info.fDataSetGrayed = FALSE;
     if(tracking_item) {
         const chart_data_t* const data = DSA_ITEM(&chart->data, chart->hot_set_ix, chart_data_t);
 
@@ -2168,17 +2168,17 @@ chart_update_hottracking(chart_t* chart)
         info.pszDataSet = data->name;
         info.clrDataSet = chart_data_color_base(data, chart->hot_set_ix);
         info.iDataSet = chart->hot_set_ix;
+        info.fDataSetGrayed = data->grayed;
     }
+    info.fSuppressTooltip = !chart->tooltip_win  ||  !tracking_item  ||  info.fDataSetGrayed;
 
     /* Send a notification message to the parent window with the information
-     * about the currently hot-tracked item (or lack thereof). A non-default
-     * (non-zero) return value indicates that they wish to suppress display
-     * of the automatic tooltip. */
-    allow_tooltip = !MC_SEND(chart->notify_win, WM_NOTIFY, info.hdr.idFrom, &info);
+     * about the currently hot-tracked item (or lack thereof). */
+    MC_SEND(chart->notify_win, WM_NOTIFY, info.hdr.idFrom, &info);
 
     /* If we are managing tooltips ourselves... */
     if(chart->tooltip_win) {
-        if(tracking_item  &&  allow_tooltip) {
+        if(tracking_item  &&  !info.fSuppressTooltip) {
             /* If there is a hot-tracked item and the parent didn't suppress
              * display of the automatic tooltip, build a string using the
              * information about the item and update the tooltip's text. */
@@ -2202,10 +2202,9 @@ chart_update_hottracking(chart_t* chart)
                 chart->tooltip_active = TRUE;
             }
         } else {
-            /* Otherwise, whether because there is no hot-tracked item to
-             * display information about or because the parent suppressed
-             * display of the automatic tooltip, hide the tooltip if it
-             * is active. */
+            /* Otherwise, whether because there is no hot-tracked item about
+             * which to display information, or because the parent suppressed
+             * display of the automatic tooltip, hide any active tooltip. */
             if(chart->tooltip_active) {
                tooltip_show_tracking(chart->tooltip_win, chart->win, FALSE);
                chart->tooltip_active = FALSE;
