@@ -1798,7 +1798,7 @@ legend_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* 
     c_D2D1_COLOR_F c;
     int set_ix, n;
 
-    if(chart->text_fmt == NULL)
+    if(chart->text_fmt == NULL  ||  (chart->style & MC_CHS_NOLEGEND))
         return;
 
     font_height = c_IDWriteTextFormat_GetFontSize(chart->text_fmt);
@@ -1966,10 +1966,17 @@ chart_calc_layout(chart_t* chart, chart_layout_t* layout)
         mc_rect_set(&layout->title_rect, 0, 0, 0, 0);
     }
 
-    layout->legend_rect.left = rect.right - layout->margin - 12 * layout->font_size.cx;
-    layout->legend_rect.top = layout->title_rect.bottom + layout->margin;
-    layout->legend_rect.right = rect.right - layout->margin;
-    layout->legend_rect.bottom = rect.bottom - layout->margin;
+    if(!(chart->style & MC_CHS_NOLEGEND)) {
+        layout->legend_rect.left = rect.right - layout->margin - 12 * layout->font_size.cx;
+        layout->legend_rect.top = layout->title_rect.bottom + layout->margin;
+        layout->legend_rect.right = rect.right - layout->margin;
+        layout->legend_rect.bottom = rect.bottom - layout->margin;
+    } else {
+        layout->legend_rect.left = rect.right;
+        layout->legend_rect.top = 0;
+        layout->legend_rect.right = rect.right;
+        layout->legend_rect.bottom = 0;
+    }
 
     layout->body_rect.left = rect.left + layout->margin;
     layout->body_rect.top = layout->title_rect.bottom + layout->margin;

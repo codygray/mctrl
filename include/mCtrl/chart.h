@@ -257,8 +257,24 @@ void MCTRL_API mcChart_Terminate(void);
  * the legend to alter their appearance in the chart. For example, if
  * an item in the legend is clicked, the appearance of the corresponding
  * data set in the chart will toggle between grayed-out and normal.
+ *
+ * @note This style is always overridden by @ref MC_CHS_NOLEGEND.
  */
 #define MC_CHS_INTERACTIVELEGEND   0x0200
+
+/**
+ * @brief Disables display of the legend.
+ *
+ * By default, the control always displays a legend, which lists all of the
+ * data sets. If this style is set, the display of the legend is suppressed
+ * and space to draw the legend is no longer reserved, which leaves a larger
+ * area for drawing the chart itself. Of course, the use of this style is
+ * strongly discouraged unless you provide some other means of informing
+ * the user what the items in the chart represent.
+ *
+ * @note This style always overrides @ref MC_CHS_INTERACTIVELEGEND.
+ */
+#define MC_CHS_NOLEGEND            0x0400
 
 /*@}*/
 
