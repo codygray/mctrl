@@ -228,12 +228,15 @@ void MCTRL_API mcChart_Terminate(void);
  */
 #define MC_CHS_NOTOOLTIPS          0x0040
 
+#ifdef DOXYGEN
 /**
  * @brief Enable painting with double buffering.
  *
- * It prevents flickering when the control is being continuously resized.
+ * @deprecated This style no longer has any effect and has therefore been
+ * removed, since the chart control is always drawn using double buffering.
  */
 #define MC_CHS_DOUBLEBUFFER        0x0080
+#endif
 
 /**
  * @brief Display balloon-style tooltips.
