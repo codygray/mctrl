@@ -690,6 +690,13 @@ pie_hit_test(chart_t* chart, const chart_layout_t* layout,
 /* This is shared by most chart types (all but pie chart); to compute where to
  * place axis, their labels etc. */
 
+typedef enum grid_axis_alignment_tag grid_axis_alignment_t;
+enum grid_axis_alignment_tag {
+    GRID_AXIS_ALIGN_LEFTTOP = 0,
+    GRID_AXIS_ALIGN_CENTER,
+    GRID_AXIS_ALIGN_RIGHTBOTTOM
+};
+
 typedef enum grid_axis_type_tag grid_axis_type_t;
 enum grid_axis_type_tag {
     GRID_AXIS_CONTINUITY = 0,
@@ -798,7 +805,7 @@ grid_calc_base_and_delta(grid_axis_t* axis, int min_pixels)
 }
 
 static void
-grid_fix_coords(grid_axis_t* axis)
+grid_fix_coords(grid_axis_t* axis, grid_axis_alignment_t alignment)
 {
     float old_width, new_width;
 
@@ -817,8 +824,24 @@ grid_fix_coords(grid_axis_t* axis)
         axis->coord_delta = new_ppgd;
     }
 
-    axis->coord0 = floorf(axis->coord0 + 0.5f * (old_width - new_width));
-    axis->coord1 = axis->coord0 + new_width;
+    switch(alignment)
+    {
+        case GRID_AXIS_ALIGN_LEFTTOP:
+            axis->coord0 = floorf(axis->coord0);
+            axis->coord1 = axis->coord0 + new_width;
+            break;
+        default:
+            MC_TRACE("grid_fix_coords: Invalid alignment option (%d)", (int)alignment);
+            /* fallthrough */
+        case GRID_AXIS_ALIGN_CENTER:
+            axis->coord0 = floorf(axis->coord0 + 0.5f * (old_width - new_width));
+            axis->coord1 = axis->coord0 + new_width;
+            break;
+        case GRID_AXIS_ALIGN_RIGHTBOTTOM:
+            axis->coord1 = floorf(axis->coord1);
+            axis->coord0 = axis->coord1 - new_width;
+            break;
+    }
 }
 
 static void
@@ -1047,8 +1070,8 @@ grid_calc_layout(chart_t* chart, const chart_layout_t* chart_layout,
 
     /* Resize the grid_rect to make all grid lines fit into pixel matrix
      * without unwanted anti-aliasing artifacts. */
-    grid_fix_coords(&gl->x_axis);
-    grid_fix_coords(&gl->y_axis);
+    grid_fix_coords(&gl->x_axis, GRID_AXIS_ALIGN_LEFTTOP);
+    grid_fix_coords(&gl->y_axis, GRID_AXIS_ALIGN_RIGHTBOTTOM);
 
     /* Compute axis name positions. */
     gl->x_axis.name_pos.x = 0.5f * (gl->x_axis.coord0 + gl->x_axis.coord1 - 1.0f);
