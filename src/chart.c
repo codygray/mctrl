@@ -864,6 +864,7 @@ grid_calc_layout(chart_t* chart, const chart_layout_t* chart_layout,
      * column chart, later we simply swap the axis params. */
     switch(type) {
         case MC_CHS_SCATTER:
+        case MC_CHS_CONNECTEDSCATTER:
             gl->x_axis.type = GRID_AXIS_CONTINUITY;
             gl->y_axis.type = GRID_AXIS_CONTINUITY;
             break;
@@ -894,6 +895,7 @@ grid_calc_layout(chart_t* chart, const chart_layout_t* chart_layout,
         gl->y_axis.max_value = INT32_MIN;
         switch(type) {
             case MC_CHS_SCATTER:
+            case MC_CHS_CONNECTEDSCATTER:
                 for(set_ix = 0; set_ix < n; set_ix++) {
                     data = DSA_ITEM(&chart->data, set_ix, chart_data_t);
                     if(data->state != MC_CHDSD_HIDDEN) {
@@ -1237,7 +1239,8 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* co
  *********************/
 
 static void
-scatter_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* colors,
+scatter_paint(chart_t* chart, BOOL is_connected,
+              chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* colors,
               const chart_layout_t* layout)
 {
     c_ID2D1RenderTarget* rt = ctx->ctx.rt;
@@ -1248,6 +1251,7 @@ scatter_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t*
     chart_data_t* data;
     c_D2D1_COLOR_F c;
     c_D2D1_ELLIPSE e;
+    c_D2D1_POINT_2F pt_prev;
 
     CACHE_INIT(&cache, chart);
 
@@ -1277,6 +1281,13 @@ scatter_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t*
             for(i = i0; i < i1; i += 2) {
                 e.point.x = grid_map_x(CACHE_VALUE(&cache, set_ix, i), &gl);
                 e.point.y = grid_map_y(CACHE_VALUE(&cache, set_ix, i+1), &gl);
+
+                if(is_connected  &&  i > i0) {
+                    c_ID2D1RenderTarget_DrawLine(rt, pt_prev, e.point,
+                                                 (c_ID2D1Brush*) ctx->solid_brush, 3.5f, NULL);
+                }
+                pt_prev = e.point;
+
                 c_ID2D1RenderTarget_FillEllipse(rt, &e, (c_ID2D1Brush*) ctx->solid_brush);
             }
         }
@@ -1297,6 +1308,13 @@ scatter_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t*
             for(i = 0; i < data->count-1; i += 2) {  /* '-1' to protect if ->count is odd */
                 e.point.x = grid_map_x(CACHE_VALUE(&cache, set_ix, i), &gl);
                 e.point.y = grid_map_y(CACHE_VALUE(&cache, set_ix, i+1), &gl);
+
+                if(is_connected  &&  i > 0) {
+                    c_ID2D1RenderTarget_DrawLine(rt, pt_prev, e.point,
+                                                 (c_ID2D1Brush*) ctx->solid_brush, 1.0f, NULL);
+                }
+                pt_prev = e.point;
+
                 c_ID2D1RenderTarget_FillEllipse(rt, &e, (c_ID2D1Brush*) ctx->solid_brush);
             }
         }
@@ -2101,8 +2119,12 @@ chart_paint(void* ctrl, xd2d_ctx_t* raw_ctx)
             break;
 
         case MC_CHS_SCATTER:
-            scatter_paint(chart, ctx, &colors, &layout);
+        case MC_CHS_CONNECTEDSCATTER:
+        {
+            BOOL is_connected = (type == MC_CHS_CONNECTEDSCATTER);
+            scatter_paint(chart, is_connected, ctx, &colors, &layout);
             break;
+        }
 
         case MC_CHS_LINE:
         case MC_CHS_STACKEDLINE:
@@ -2153,6 +2175,7 @@ chart_hit_test(chart_t* chart, int x, int y, int* set_ix, int* i)
                 return;
 
             case MC_CHS_SCATTER:
+            case MC_CHS_CONNECTEDSCATTER:
                 scatter_hit_test(chart, &layout, x, y, set_ix, i);
                 return;
 
@@ -2219,7 +2242,7 @@ chart_update_hottracking(chart_t* chart)
                         temp_str);
         mc_str_inbuf(temp_str, MC_STRW, x_str, MC_STRT, MC_SIZEOF_ARRAY(x_str));
         info.pszValue = x_str;
-        if(chart_type == MC_CHS_SCATTER) {
+        if(chart_type == MC_CHS_SCATTER  ||  chart_type == MC_CHS_CONNECTEDSCATTER) {
             val = chart_value(chart, chart->hot_set_ix, chart->hot_i+1);
             chart_str_value(&chart->axis2, val, temp_str);
             mc_str_inbuf(temp_str, MC_STRW, y_str, MC_STRT, MC_SIZEOF_ARRAY(y_str));
@@ -2246,7 +2269,7 @@ chart_update_hottracking(chart_t* chart)
              * information about the item and update the tooltip's text. */
             TCHAR buffer[256];
             buffer[0] = _T('\0');
-            if(chart_type == MC_CHS_SCATTER) {
+            if(chart_type == MC_CHS_SCATTER  ||  chart_type == MC_CHS_CONNECTEDSCATTER) {
                _sntprintf(buffer, MC_SIZEOF_ARRAY(buffer),
                           _T("%s: (%s, %s)"),
                           info.pszDataSet, info.pszValue, info.pszValueY);

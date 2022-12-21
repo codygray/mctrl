@@ -123,11 +123,12 @@ extern "C" {
  * chart types this control provides. Many control attributes settable by
  * control messages actually have no impact to the pie chart.
  *
- * The scatter chart (@ref MC_CHS_SCATTER) expects to have all data set sizes
- * of even count of values. Unlike the other chart types, the sizes of the data
- * sets can differ. The scatter chart interprets each data set as a set of
- * value pairs. Each value with odd index corresponds with the primary (X) axis,
- * and even index with secondary (Y) axis respectively.
+ * The scatter chart (@ref MC_CHS_SCATTER and @ref MC_CHS_CONNECTEDSCATTER)
+ * expects to have all data set sizes of even count of values. Unlike the
+ * other chart types, the sizes of the data sets can differ. The scatter chart
+ * interprets each data set as a set of value pairs. Each value with odd index
+ * corresponds with the primary (X) axis, and even index with secondary (Y)
+ * axis respectively.
  *
  * The line chart (@ref MC_CHS_LINE), the area chart (@ref MC_CHS_AREA), the
  * column chart (@ref MC_CHS_COLUMN) and the bar chart (@ref MC_CHS_BAR) only
@@ -194,27 +195,29 @@ void MCTRL_API mcChart_Terminate(void);
 /*@{*/
 
 /** @brief Pie chart. */
-#define MC_CHS_PIE             0x0000
+#define MC_CHS_PIE               0x0000
 /** @brief Scatter chart. */
-#define MC_CHS_SCATTER         0x0001
+#define MC_CHS_SCATTER           0x0001
 /** @brief Line chart. */
-#define MC_CHS_LINE            0x0002
+#define MC_CHS_LINE              0x0002
 /** @brief Stacked line chart. */
-#define MC_CHS_STACKEDLINE     0x0003
+#define MC_CHS_STACKEDLINE       0x0003
 /** @brief Area chart. */
-#define MC_CHS_AREA            0x0004
+#define MC_CHS_AREA              0x0004
 /** @brief Stacked area chart. */
-#define MC_CHS_STACKEDAREA     0x0005
+#define MC_CHS_STACKEDAREA       0x0005
 /** @brief Column chart. */
-#define MC_CHS_COLUMN          0x0006
+#define MC_CHS_COLUMN            0x0006
 /** @brief Stacked column chart. */
-#define MC_CHS_STACKEDCOLUMN   0x0007
+#define MC_CHS_STACKEDCOLUMN     0x0007
 /** @brief Bar chart. */
-#define MC_CHS_BAR             0x0008
+#define MC_CHS_BAR               0x0008
 /** @brief Stacked bar chart. */
-#define MC_CHS_STACKEDBAR      0x0009
+#define MC_CHS_STACKEDBAR        0x0009
+/** @brief Scatter chart, with points connected by lines. */
+#define MC_CHS_CONNECTEDSCATTER  0x000a
 /** @brief This is not actually a valid style, it's the bit-mask of chart type. */
-#define MC_CHS_TYPEMASK        0x003f
+#define MC_CHS_TYPEMASK          0x003f
 
 /**
  * @brief Disables a tooltip window.
