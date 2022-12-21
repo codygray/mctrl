@@ -127,7 +127,8 @@ OnHotTrack(HWND hwndDlg, MC_NMCHHOTTRACK* pInfo)
            _sntprintf(szBuffer,
                       cchBuffer,
                       _T("You are hovering over the %spoint (%s, %s), representing \"%s\" (series #%d)."),
-                      (pInfo->fDataSetGrayed ? _T("grayed ") : _T("")),
+                      (pInfo->dataSetState == MC_CHDSD_HIDDEN) ? _T("hidden ") :
+                      (pInfo->dataSetState == MC_CHDSD_GRAYED) ? _T("grayed ") : _T(""),
                       pInfo->pszValue,
                       pInfo->pszValueY,
                       pInfo->pszDataSet,
@@ -136,7 +137,8 @@ OnHotTrack(HWND hwndDlg, MC_NMCHHOTTRACK* pInfo)
            _sntprintf(szBuffer,
                       cchBuffer,
                       _T("You are hovering over the %svalue \"%s\", representing \"%s\" (series #%d)."),
-                      (pInfo->fDataSetGrayed ? _T("grayed ") : _T("")),
+                      (pInfo->dataSetState == MC_CHDSD_HIDDEN) ? _T("hidden ") :
+                      (pInfo->dataSetState == MC_CHDSD_GRAYED) ? _T("grayed ") : _T(""),
                       pInfo->pszValue,
                       pInfo->pszDataSet,
                       pInfo->iDataSet + 1);

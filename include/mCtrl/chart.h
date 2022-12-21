@@ -301,6 +301,24 @@ void MCTRL_API mcChart_Terminate(void);
 
 
 /**
+ * @anchor MC_CHDSD_xxxx
+ * @name Data Set Display States
+ */
+/*@{*/
+
+/** @brief The data set is displayed normally. */
+#define MC_CHDSD_NORMAL               0
+
+/** @brief The data set is grayed. */
+#define MC_CHDSD_GRAYED               1
+
+/** @brief The data set is hidden. */
+#define MC_CHDSD_HIDDEN               2
+
+/*@}*/
+
+
+/**
  * @name Structures
  */
 /*@{*/
@@ -384,11 +402,11 @@ typedef struct MC_NMCHHOTTRACK_tag {
      */
     int iDataSet;
     /**
-     * @brief Indicates whether the hot-tracked item's data set is grayed.
+     * @brief Display state of the hot-tracked item's data set (see @ref MC_CHDSD_xxxx).
      *
-     * If no item is hot-tracked, then this will be @c FALSE.
+     * If no item is hot-tracked, then this will be -1.
      */
-    BOOL fDataSetGrayed;
+    UINT dataSetState;
     /**
      * @brief Indicates whether to suppress automatic display of a tooltip.
      *
@@ -721,6 +739,24 @@ typedef struct MC_NMCHHOTTRACK_tag {
  * set its colors, unless redrawing has been suppressed via @c WM_SETREDRAW.
  */
 #define MC_CHM_SETCOLORS               (MC_CHM_FIRST + 25)
+
+/**
+ * @brief Get the display state of a data set in the chart.
+ * @param[in] wParam (@c int) Index of the data set.
+ * @param lParam Reserved, set to zero.
+ * @return (@c UINT) One of the data set display states
+ * (see @ref MC_CHDSD_xxxx), or @c -1 on failure.
+ */
+#define MC_CHM_GETDATASETSTATE        (MC_CHM_FIRST + 26)
+
+/**
+ * @brief Set the display state of a data set in the chart.
+ * @param[in] wParam (@c int) Index of the data set.
+ * @param[in] lParam (@c UINT) One of the data set display states
+ * (see @ref MC_CHDSD_xxxx).
+ * @return (@c BOOL) @c TRUE on success, @c FALSE otherwise.
+ */
+#define MC_CHM_SETDATASETSTATE        (MC_CHM_FIRST + 27)
 
 /*@}*/
 
