@@ -20,30 +20,36 @@ static COLORREF clrStatus;
 
 
 static void
-SetupPieChart(HWND hwndChart)
+SetupCommonChart(HWND hwndChart)
 {
-    const struct {
-        const TCHAR* name;
-        int value;
-    } data[] = {
-        { _T("Work"),    11 },
-        { _T("Eat"),      2 },
-        { _T("Commute"),  2 },
-        { _T("Watch TV"), 2 },
-        { _T("Sleep"),    7 }
-    };
+    const int austriaData[] = { 1336060, 1538156, 1576579, 1600652, 1968113 };
+    const int denmarkData[] = { 1001582, 1119450,  993360, 1004163,  979198 };
+    const int greeceData[] =  { 1197974, 1041795,  930593,  867127,  780887 };
+
     MC_CHDATASET dataSet;
-    int i;
 
-    SetWindowText(hwndChart, _T("Daily Activities"));
+    SetWindowText(hwndChart, _T("Yearly Coffee Consumption by Country"));
 
-    for(i = 0; i < sizeof(data) / sizeof(data[0]); i++) {
-        /* Pie chart expects only one (non-negative) value per data set. */
-        dataSet.dwCount = 1;
-        dataSet.piValues = (int*) &data[i].value;
-        SendMessage(hwndChart, MC_CHM_INSERTDATASET, i, (LPARAM) &dataSet);
-        SendMessage(hwndChart, MC_CHM_SETDATASETLEGEND, i, (LPARAM) data[i].name);
-    }
+    SendMessage(hwndChart, MC_CHM_SETAXISLEGEND, 1, (LPARAM) _T("Year"));
+    SendMessage(hwndChart, MC_CHM_SETAXISLEGEND, 2, (LPARAM) _T("Amount [tons]"));
+
+    /* The data are since year 2003 */
+    SendMessage(hwndChart, MC_CHM_SETAXISOFFSET, 1, 2003);
+
+    dataSet.dwCount = sizeof(austriaData) / sizeof(austriaData[0]);
+    dataSet.piValues = (int*) austriaData;
+    SendMessage(hwndChart, MC_CHM_INSERTDATASET, 0, (LPARAM) &dataSet);
+    SendMessage(hwndChart, MC_CHM_SETDATASETLEGEND, 0, (LPARAM) _T("Austria"));
+
+    dataSet.dwCount = sizeof(denmarkData) / sizeof(denmarkData[0]);
+    dataSet.piValues = (int*) denmarkData;
+    SendMessage(hwndChart, MC_CHM_INSERTDATASET, 1, (LPARAM) &dataSet);
+    SendMessage(hwndChart, MC_CHM_SETDATASETLEGEND, 1, (LPARAM) _T("Denmark"));
+
+    dataSet.dwCount = sizeof(greeceData) / sizeof(greeceData[0]);
+    dataSet.piValues = (int*) greeceData;
+    SendMessage(hwndChart, MC_CHM_INSERTDATASET, 2, (LPARAM) &dataSet);
+    SendMessage(hwndChart, MC_CHM_SETDATASETLEGEND, 2, (LPARAM) _T("Greece"));
 }
 
 static void
@@ -81,36 +87,30 @@ SetupScatterChart(HWND hwndChart)
 }
 
 static void
-SetupCommonChart(HWND hwndChart)
+SetupPieChart(HWND hwndChart)
 {
-    const int austriaData[] = { 1336060, 1538156, 1576579, 1600652, 1968113 };
-    const int denmarkData[] = { 1001582, 1119450,  993360, 1004163,  979198 };
-    const int greeceData[] =  { 1197974, 1041795,  930593,  867127,  780887 };
-
+    const struct {
+        const TCHAR* name;
+        int value;
+    } data[] = {
+        { _T("Work"),    11 },
+        { _T("Eat"),      2 },
+        { _T("Commute"),  2 },
+        { _T("Watch TV"), 2 },
+        { _T("Sleep"),    7 }
+    };
     MC_CHDATASET dataSet;
+    int i;
 
-    SetWindowText(hwndChart, _T("Yearly Coffee Consumption by Country"));
+    SetWindowText(hwndChart, _T("Daily Activities"));
 
-    SendMessage(hwndChart, MC_CHM_SETAXISLEGEND, 1, (LPARAM) _T("Year"));
-    SendMessage(hwndChart, MC_CHM_SETAXISLEGEND, 2, (LPARAM) _T("Amount [tons]"));
-
-    /* The data are since year 2003 */
-    SendMessage(hwndChart, MC_CHM_SETAXISOFFSET, 1, 2003);
-
-    dataSet.dwCount = sizeof(austriaData) / sizeof(austriaData[0]);
-    dataSet.piValues = (int*) austriaData;
-    SendMessage(hwndChart, MC_CHM_INSERTDATASET, 0, (LPARAM) &dataSet);
-    SendMessage(hwndChart, MC_CHM_SETDATASETLEGEND, 0, (LPARAM) _T("Austria"));
-
-    dataSet.dwCount = sizeof(denmarkData) / sizeof(denmarkData[0]);
-    dataSet.piValues = (int*) denmarkData;
-    SendMessage(hwndChart, MC_CHM_INSERTDATASET, 1, (LPARAM) &dataSet);
-    SendMessage(hwndChart, MC_CHM_SETDATASETLEGEND, 1, (LPARAM) _T("Denmark"));
-
-    dataSet.dwCount = sizeof(greeceData) / sizeof(greeceData[0]);
-    dataSet.piValues = (int*) greeceData;
-    SendMessage(hwndChart, MC_CHM_INSERTDATASET, 2, (LPARAM) &dataSet);
-    SendMessage(hwndChart, MC_CHM_SETDATASETLEGEND, 2, (LPARAM) _T("Greece"));
+    for(i = 0; i < sizeof(data) / sizeof(data[0]); i++) {
+        /* Pie chart expects only one (non-negative) value per data set. */
+        dataSet.dwCount = 1;
+        dataSet.piValues = (int*) &data[i].value;
+        SendMessage(hwndChart, MC_CHM_INSERTDATASET, i, (LPARAM) &dataSet);
+        SendMessage(hwndChart, MC_CHM_SETDATASETLEGEND, i, (LPARAM) data[i].name);
+    }
 }
 
 static void
@@ -180,17 +180,17 @@ OnSize(HWND hwndDlg, WPARAM nType, int cx, int cy)
 
         HDWP hdwp = BeginDeferWindowPos(10);
         if(hdwp) {
-            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_PIE), NULL, xChart1, yChart1, cxChart, cyChart, flags);
-            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_SCATTER), NULL, xChart2, yChart1, cxChart, cyChart, flags);
-            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_LINE), NULL, xChart3, yChart1, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_LINE), NULL, xChart1, yChart1, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_COLUMN), NULL, xChart2, yChart1, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_BAR), NULL, xChart3, yChart1, cxChart, cyChart, flags);
 
             hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_AREA), NULL, xChart1, yChart2, cxChart, cyChart, flags);
-            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_COLUMN), NULL, xChart2, yChart2, cxChart, cyChart, flags);
-            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_BAR), NULL, xChart3, yChart2, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_STACKEDCOLUMN), NULL, xChart2, yChart2, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_STACKEDBAR), NULL, xChart3, yChart2, cxChart, cyChart, flags);
 
             hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_STACKEDAREA), NULL, xChart1, yChart3, cxChart, cyChart, flags);
-            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_STACKEDCOLUMN), NULL, xChart2, yChart3, cxChart, cyChart, flags);
-            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_STACKEDBAR), NULL, xChart3, yChart3, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_SCATTER), NULL, xChart2, yChart3, cxChart, cyChart, flags);
+            hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_PIE), NULL, xChart3, yChart3, cxChart, cyChart, flags);
 
             hdwp = DeferWindowPos(hdwp, GetDlgItem(hwndDlg, IDC_CHART_STATUS), NULL, xChart1, yChart3 + cyChart + cyPadding, cx - (cxBorder * 2), cyStatus, flags);
 
@@ -209,8 +209,6 @@ DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             return TRUE;
 
         case WM_INITDIALOG:
-            SetupPieChart(GetDlgItem(hwndDlg, IDC_CHART_PIE));
-            SetupScatterChart(GetDlgItem(hwndDlg, IDC_CHART_SCATTER));
             SetupCommonChart(GetDlgItem(hwndDlg, IDC_CHART_LINE));
             SetupCommonChart(GetDlgItem(hwndDlg, IDC_CHART_AREA));
             SetupCommonChart(GetDlgItem(hwndDlg, IDC_CHART_STACKEDAREA));
@@ -218,6 +216,8 @@ DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             SetupCommonChart(GetDlgItem(hwndDlg, IDC_CHART_STACKEDCOLUMN));
             SetupCommonChart(GetDlgItem(hwndDlg, IDC_CHART_BAR));
             SetupCommonChart(GetDlgItem(hwndDlg, IDC_CHART_STACKEDBAR));
+            SetupScatterChart(GetDlgItem(hwndDlg, IDC_CHART_SCATTER));
+            SetupPieChart(GetDlgItem(hwndDlg, IDC_CHART_PIE));
             return TRUE;
 
         case WM_SIZE:
