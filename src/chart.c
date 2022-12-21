@@ -1039,6 +1039,7 @@ grid_calc_layout(chart_t* chart, const chart_layout_t* chart_layout,
     gl->x_axis.coord0 += MC_MAX(y_label_width, 0.5f * x_label_width);
     gl->y_axis.coord0 += 0.5f * y_label_height;
     gl->y_axis.coord1 -= x_label_height;
+    gl->x_axis.coord1 -= (x_label_width / 4);  /* prevent X-axis label from overlapping legend */
 
     /* Compute axis base and delta. */
     grid_calc_base_and_delta(&gl->x_axis, x_label_width);
