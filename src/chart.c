@@ -1239,19 +1239,65 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* co
  *********************/
 
 static void
+scatter_paint_values(chart_t* chart, BOOL is_connected, chart_xd2d_ctx_t* ctx,
+                     const grid_layout_t* gl, cache_t* cache, int set_ix, BOOL is_aura)
+{
+    const chart_data_t* const data = DSA_ITEM(&chart->data, set_ix, chart_data_t);
+    c_ID2D1RenderTarget* rt = ctx->ctx.rt;
+    int i_begin, i_end, i;
+    c_D2D1_POINT_2F pt_prev;
+    c_D2D1_ELLIPSE e;
+    float line_width;
+    c_D2D1_COLOR_F c;
+
+    if(data->state == MC_CHDSD_HIDDEN)
+        return;
+
+    i_begin = 0;
+    i_end = data->count-1;
+    if(is_aura) {
+        if(chart->hot_i >= 0) {
+            i_begin = chart->hot_i;
+            i_end = chart->hot_i+1;
+        }
+        e.radiusX = 4.0f;
+        e.radiusY = 4.0f;
+        line_width = 3.5f;
+        c = chart_data_color(data, set_ix, DATA_COLOR_AURA);
+    } else {
+        e.radiusX = 2.0f;
+        e.radiusY = 2.0f;
+        line_width = 1.0f;
+        c = chart_data_color(data, set_ix,
+                             data->state == MC_CHDSD_NORMAL ? DATA_COLOR_NORMAL
+                                                            : DATA_COLOR_GRAYED);
+    }
+    c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
+
+    for(i = i_begin; i < i_end; i += 2) {
+        e.point.x = grid_map_x(CACHE_VALUE(cache, set_ix, i), gl);
+        e.point.y = grid_map_y(CACHE_VALUE(cache, set_ix, i+1), gl);
+
+        if(is_connected  &&  i > i_begin) {
+            c_ID2D1RenderTarget_DrawLine(rt, pt_prev, e.point,
+                    (c_ID2D1Brush*) ctx->solid_brush, line_width, NULL);
+        }
+
+        c_ID2D1RenderTarget_FillEllipse(rt, &e, (c_ID2D1Brush*) ctx->solid_brush);
+
+        pt_prev = e.point;
+    }
+}
+
+static void
 scatter_paint(chart_t* chart, BOOL is_connected,
               chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* colors,
               const chart_layout_t* layout)
 {
-    c_ID2D1RenderTarget* rt = ctx->ctx.rt;
     cache_t cache;
     grid_layout_t gl;
-    int set_ix, n;
-    int i;
-    chart_data_t* data;
-    c_D2D1_COLOR_F c;
-    c_D2D1_ELLIPSE e;
-    c_D2D1_POINT_2F pt_prev;
+    int set_ix;
+    const int n = dsa_size(&chart->data);
 
     CACHE_INIT(&cache, chart);
 
@@ -1259,66 +1305,12 @@ scatter_paint(chart_t* chart, BOOL is_connected,
     grid_paint(chart, ctx, colors, &gl);
 
     /* Paint aura for hot value(s). */
-    if(chart->hot_set_ix >= 0) {
-        int i0, i1;
-
-        set_ix = chart->hot_set_ix;
-        data = DSA_ITEM(&chart->data, set_ix, chart_data_t);
-        if(data->state != MC_CHDSD_HIDDEN) {
-            c = chart_data_color(data, set_ix, DATA_COLOR_AURA);
-            c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
-
-            if(chart->hot_i >= 0) {
-                i0 = chart->hot_i;
-                i1 = chart->hot_i+1;
-            } else {
-                i0 = 0;
-                i1 = data->count-1;
-            }
-
-            e.radiusX = 4.0f;
-            e.radiusY = 4.0f;
-            for(i = i0; i < i1; i += 2) {
-                e.point.x = grid_map_x(CACHE_VALUE(&cache, set_ix, i), &gl);
-                e.point.y = grid_map_y(CACHE_VALUE(&cache, set_ix, i+1), &gl);
-
-                if(is_connected  &&  i > i0) {
-                    c_ID2D1RenderTarget_DrawLine(rt, pt_prev, e.point,
-                                                 (c_ID2D1Brush*) ctx->solid_brush, 3.5f, NULL);
-                }
-                pt_prev = e.point;
-
-                c_ID2D1RenderTarget_FillEllipse(rt, &e, (c_ID2D1Brush*) ctx->solid_brush);
-            }
-        }
-    }
+    if(chart->hot_set_ix >= 0)
+        scatter_paint_values(chart, is_connected, ctx, &gl, &cache, chart->hot_set_ix, TRUE);
 
     /* Paint all data sets. */
-    n = dsa_size(&chart->data);
-    e.radiusX = 2.0f;
-    e.radiusY = 2.0f;
-    for(set_ix = 0; set_ix < n; set_ix++) {
-        data = DSA_ITEM(&chart->data, set_ix, chart_data_t);
-        if(data->state != MC_CHDSD_HIDDEN) {
-            c = chart_data_color(data, set_ix,
-                                 data->state == MC_CHDSD_NORMAL ? DATA_COLOR_NORMAL
-                                                                : DATA_COLOR_GRAYED);
-            c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
-
-            for(i = 0; i < data->count-1; i += 2) {  /* '-1' to protect if ->count is odd */
-                e.point.x = grid_map_x(CACHE_VALUE(&cache, set_ix, i), &gl);
-                e.point.y = grid_map_y(CACHE_VALUE(&cache, set_ix, i+1), &gl);
-
-                if(is_connected  &&  i > 0) {
-                    c_ID2D1RenderTarget_DrawLine(rt, pt_prev, e.point,
-                                                 (c_ID2D1Brush*) ctx->solid_brush, 1.0f, NULL);
-                }
-                pt_prev = e.point;
-
-                c_ID2D1RenderTarget_FillEllipse(rt, &e, (c_ID2D1Brush*) ctx->solid_brush);
-            }
-        }
-    }
+    for(set_ix = 0; set_ix < n; set_ix++)
+        scatter_paint_values(chart, is_connected, ctx, &gl, &cache, set_ix, FALSE);
 
     CACHE_FINI(&cache);
 }
@@ -1375,18 +1367,12 @@ line_paint_area(chart_t* chart, cache_t* cache, int set_ix, BOOL is_stacked,
     c_ID2D1GeometrySink* sink;
     c_D2D1_POINT_2F pt;
     c_D2D1_COLOR_F c;
-    int x0, x1, x, y;
+    int x_begin, x_end, x, y;
 
-    x0 = 0;
-    x1 = data->count;
-    if(x1 < 1  ||  data->state == MC_CHDSD_HIDDEN)
+    x_begin = 0;
+    x_end = data->count;
+    if(x_end < 1  ||  data->state == MC_CHDSD_HIDDEN)
         return;
-
-    c = chart_data_color(data, set_ix,
-                         data->state == MC_CHDSD_NORMAL
-                             ? (is_hot ? DATA_COLOR_AREA_HOT        : DATA_COLOR_AREA_NOT)
-                             : (is_hot ? DATA_COLOR_AREA_GRAYED_HOT : DATA_COLOR_AREA_GRAYED_NOT));
-    c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
     path = xd2d_CreatePathGeometry(&sink);
     if(MC_ERR(path == NULL)) {
@@ -1397,7 +1383,7 @@ line_paint_area(chart_t* chart, cache_t* cache, int set_ix, BOOL is_stacked,
     pt.x = gl->x_axis.coord0;
     pt.y = gl->y_axis.coord1;
     c_ID2D1GeometrySink_BeginFigure(sink, pt, c_D2D1_FIGURE_BEGIN_FILLED);
-    for(x = x0; x < x1; x++) {
+    for(x = x_begin; x < x_end; x++) {
         if(is_stacked)
             y = cache_stack(cache, set_ix, x);
         else
@@ -1410,7 +1396,7 @@ line_paint_area(chart_t* chart, cache_t* cache, int set_ix, BOOL is_stacked,
     pt.y = gl->y_axis.coord1;
     c_ID2D1GeometrySink_AddLine(sink, pt);
     if(is_stacked  &&  set_ix > 0) {
-        for(x = x1-1; x >= x0; x--) {
+        for(x = x_end-1; x >= x_begin; x--) {
             y = cache_stack(cache, set_ix-1, x);
 
             pt.x = grid_map_x(x, gl);
@@ -1419,9 +1405,14 @@ line_paint_area(chart_t* chart, cache_t* cache, int set_ix, BOOL is_stacked,
         }
     }
     c_ID2D1GeometrySink_EndFigure(sink, c_D2D1_FIGURE_END_CLOSED);
-
     c_ID2D1GeometrySink_Close(sink);
     c_ID2D1GeometrySink_Release(sink);
+
+    c = chart_data_color(data, set_ix,
+                         data->state == MC_CHDSD_NORMAL
+                             ? (is_hot ? DATA_COLOR_AREA_HOT        : DATA_COLOR_AREA_NOT)
+                             : (is_hot ? DATA_COLOR_AREA_GRAYED_HOT : DATA_COLOR_AREA_GRAYED_NOT));
+    c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
     c_ID2D1RenderTarget_FillGeometry(rt, (c_ID2D1Geometry*) path,
                 (c_ID2D1Brush*) ctx->solid_brush, NULL);
@@ -1429,65 +1420,58 @@ line_paint_area(chart_t* chart, cache_t* cache, int set_ix, BOOL is_stacked,
 }
 
 static void
-line_paint_lines(chart_t* chart, cache_t* cache, int set_ix, BOOL is_stacked,
-                 chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* colors,
-                 const grid_layout_t* gl, BOOL is_aura)
+line_paint_lines(chart_t* chart, BOOL is_stacked, chart_xd2d_ctx_t* ctx,
+                 const grid_layout_t* gl, cache_t* cache, int set_ix, BOOL is_aura)
 {
     const chart_data_t* const data = DSA_ITEM(&chart->data, set_ix, chart_data_t);
     c_ID2D1RenderTarget* rt = ctx->ctx.rt;
-    int x0, x1, x, y;
-    float line_width;
-    c_D2D1_POINT_2F pt0, pt1;
-    c_D2D1_COLOR_F c;
+    int x_begin, x_end, x, y;
+    c_D2D1_POINT_2F pt_prev;
     c_D2D1_ELLIPSE e;
+    float line_width;
+    c_D2D1_COLOR_F c;
 
     if(data->state == MC_CHDSD_HIDDEN)
         return;
 
+    x_begin = 0;
+    x_end = data->count;
     if(is_aura) {
         if(chart->hot_i >= 0) {
-            x0 = chart->hot_i;
-            x1 = chart->hot_i+1;
-        } else {
-            x0 = 0;
-            x1 = data->count;
+            x_begin = chart->hot_i;
+            x_end = chart->hot_i+1;
         }
-        c = chart_data_color(data, set_ix, DATA_COLOR_AURA);
         e.radiusX = 4.0f;
         e.radiusY = 4.0f;
         line_width = 3.5f;
+        c = chart_data_color(data, set_ix, DATA_COLOR_AURA);
     } else {
-        x0 = 0;
-        x1 = data->count;
-        c = chart_data_color(data, set_ix,
-                             data->state == MC_CHDSD_NORMAL ? DATA_COLOR_NORMAL
-                                                            : DATA_COLOR_GRAYED);
         e.radiusX = 2.0f;
         e.radiusY = 2.0f;
         line_width = 1.0f;
+        c = chart_data_color(data, set_ix,
+                             data->state == MC_CHDSD_NORMAL ? DATA_COLOR_NORMAL
+                                                            : DATA_COLOR_GRAYED);
     }
-
     c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
-    for(x = x0; x < x1; x++) {
+    for(x = x_begin; x < x_end; x++) {
         if(is_stacked)
             y = cache_stack(cache, set_ix, x);
         else
             y = CACHE_VALUE(cache, set_ix, x);
 
-        pt1.x = grid_map_x(x, gl);
-        pt1.y = grid_map_y(y, gl);
-        if(x > x0) {
-            c_ID2D1RenderTarget_DrawLine(rt, pt0, pt1,
+        e.point.x = grid_map_x(x, gl);
+        e.point.y = grid_map_y(y, gl);
+
+        if(x > x_begin) {
+            c_ID2D1RenderTarget_DrawLine(rt, pt_prev, e.point,
                     (c_ID2D1Brush*) ctx->solid_brush, line_width, NULL);
         }
 
-        e.point.x = pt1.x;
-        e.point.y = pt1.y;
         c_ID2D1RenderTarget_FillEllipse(rt, &e, (c_ID2D1Brush*) ctx->solid_brush);
 
-        pt0.x = pt1.x;
-        pt0.y = pt1.y;
+        pt_prev = e.point;
     }
 }
 
@@ -1498,28 +1482,27 @@ line_paint(chart_t* chart, BOOL is_area, BOOL is_stacked,
 {
     cache_t cache;
     grid_layout_t gl;
-    int set_ix, n;
-
-    n = dsa_size(&chart->data);
+    int set_ix;
+    const int n = dsa_size(&chart->data);
 
     CACHE_INIT(&cache, chart);
 
     grid_calc_layout(chart, layout, &cache, &gl);
     grid_paint(chart, ctx, colors, &gl);
 
-    /* Paint areas */
+    /* Paint areas under the lines for all data sets. */
     if(is_area) {
         for(set_ix = 0; set_ix < n; set_ix++)
             line_paint_area(chart, &cache, set_ix, is_stacked, ctx, colors, &gl);
     }
 
-    /* Paint aura */
+    /* Paint aura for hot line. */
     if(chart->hot_set_ix >= 0)
-        line_paint_lines(chart, &cache, chart->hot_set_ix, is_stacked, ctx, colors, &gl, TRUE);
+        line_paint_lines(chart, is_stacked, ctx, &gl, &cache, chart->hot_set_ix, TRUE);
 
-    /* Paint all data sets */
+    /* Paint lines for all data sets. */
     for(set_ix = 0; set_ix < n; set_ix++)
-        line_paint_lines(chart, &cache, set_ix, is_stacked, ctx, colors, &gl, FALSE);
+        line_paint_lines(chart, is_stacked, ctx, &gl, &cache, set_ix, FALSE);
 
     CACHE_FINI(&cache);
 }
