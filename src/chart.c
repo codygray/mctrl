@@ -57,8 +57,8 @@ typedef struct chart_axis_tag chart_axis_t;
 struct chart_axis_tag {
     TCHAR* name;
     int offset;
-    CHAR factor_exp;
-    BOOL suppress_gridlines;
+    signed char factor_exp;
+    unsigned char suppress_gridlines;
 };
 
 typedef struct chart_data_tag chart_data_t;
@@ -79,17 +79,15 @@ struct chart_tag {
     c_IDWriteTextFormat* text_fmt;
     UINT16 font_units_per_height;
     UINT16 font_cap_height;
+    UINT32 style          : 16;
+    UINT32 no_redraw      :  1;
+    UINT32 tracking_leave :  1;
+    UINT32 tooltip_active :  1;
     xd2d_cache_t xd2d_cache;
-    DWORD style          : 16;
-    DWORD no_redraw      :  1;
-    DWORD tracking_leave :  1;
-    DWORD tooltip_active :  1;
     COLORREF back_color;
     COLORREF fore_color;
     chart_axis_t axis1;
     chart_axis_t axis2;
-    int min_visible_value;
-    int max_visible_value;
     int hot_set_ix;
     int hot_i;
     dsa_t data;
@@ -97,11 +95,9 @@ struct chart_tag {
 
 typedef struct chart_layout_tag chart_layout_t;
 struct chart_layout_tag {
-    SIZE font_size;
-    int margin;
     RECT title_rect;
-    RECT body_rect;
     RECT legend_rect;
+    RECT body_rect;
 };
 
 typedef struct chart_paint_colors_tag chart_paint_colors_t;
@@ -2001,30 +1997,33 @@ legend_hit_test(chart_t* chart, chart_layout_t* layout, int x, int y)
 static void
 chart_calc_layout(chart_t* chart, chart_layout_t* layout)
 {
-    TCHAR buf[2];
     RECT rect;
+    SIZE font_size;
+    int margin;
+    TCHAR buf[2];
 
     GetClientRect(chart->win, &rect);
-    // FIXME: we should use DirectWrite metrics here.
-    mc_font_size(chart->gdi_font, &layout->font_size, FALSE);
 
-    layout->margin = (layout->font_size.cy+1) / 2;
+    // FIXME: we should use DirectWrite metrics here.
+    mc_font_size(chart->gdi_font, &font_size, FALSE);
+
+    margin = (font_size.cy+1) / 2;
 
     GetWindowText(chart->win, buf, MC_SIZEOF_ARRAY(buf));
     if(buf[0] != _T('\0')) {
-        layout->title_rect.left = rect.left + layout->margin;
-        layout->title_rect.top = rect.top + layout->margin;
-        layout->title_rect.right = rect.right - layout->margin;
-        layout->title_rect.bottom = layout->title_rect.top + layout->font_size.cy;
+        layout->title_rect.left = rect.left + margin;
+        layout->title_rect.top = rect.top + margin;
+        layout->title_rect.right = rect.right - margin;
+        layout->title_rect.bottom = layout->title_rect.top + font_size.cy;
     } else {
         mc_rect_set(&layout->title_rect, 0, 0, 0, 0);
     }
 
     if(!(chart->style & MC_CHS_NOLEGEND)) {
-        layout->legend_rect.left = rect.right - layout->margin - 12 * layout->font_size.cx;
-        layout->legend_rect.top = layout->title_rect.bottom + layout->margin;
-        layout->legend_rect.right = rect.right - layout->margin;
-        layout->legend_rect.bottom = rect.bottom - layout->margin;
+        layout->legend_rect.left = rect.right - margin - 12 * font_size.cx;
+        layout->legend_rect.top = layout->title_rect.bottom + margin;
+        layout->legend_rect.right = rect.right - margin;
+        layout->legend_rect.bottom = rect.bottom - margin;
     } else {
         layout->legend_rect.left = rect.right;
         layout->legend_rect.top = 0;
@@ -2032,10 +2031,10 @@ chart_calc_layout(chart_t* chart, chart_layout_t* layout)
         layout->legend_rect.bottom = 0;
     }
 
-    layout->body_rect.left = rect.left + layout->margin;
-    layout->body_rect.top = layout->title_rect.bottom + layout->margin;
-    layout->body_rect.right = layout->legend_rect.left - layout->margin;
-    layout->body_rect.bottom = rect.bottom - layout->margin;
+    layout->body_rect.left = rect.left + margin;
+    layout->body_rect.top = layout->title_rect.bottom + margin;
+    layout->body_rect.right = layout->legend_rect.left - margin;
+    layout->body_rect.bottom = rect.bottom - margin;
 }
 
 static void
