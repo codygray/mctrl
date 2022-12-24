@@ -781,18 +781,16 @@ grid_fix_axis_scale(grid_axis_t* axis, chart_axis_t* axis_params)
 static void
 grid_calc_base_and_delta(grid_axis_t* axis, int min_pixels)
 {
-    if(axis->type != GRID_AXIS_CONTINUITY) {
-        axis->grid_base = 0;
-        axis->grid_delta = 1;
-        return;
+    axis->grid_delta = 1;
+    if(axis->type != GRID_AXIS_CATEGORY) {
+        /* Adjust spacing between gridlines (and thus labels) to fit the available space.
+         * (Difference of two orthogonal lines in neighborhood.) */
+        axis->grid_delta = MC_MAX(axis->grid_delta,
+                                  chart_round_value((min_pixels * (axis->max_value - axis->min_value))
+                                                    /
+                                                    MC_MAX(1, (int)(axis->coord1 - axis->coord0)),
+                                                    TRUE));
     }
-
-    /* Difference of two orthogonal lines in neighborhood. */
-    axis->grid_delta = MC_MAX(1,
-                              chart_round_value((min_pixels * (axis->max_value - axis->min_value))
-                                                /
-                                                MC_MAX(1, (int)(axis->coord1 - axis->coord0)),
-                                                TRUE));
 
     /* Value corresponding to the 1st visible lines. We choose it so that
      * (1) BASE >= min_value_x; and
@@ -1188,7 +1186,7 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* co
     if(gl->x_axis.type != GRID_AXIS_CATEGORY)
         pt0.x = gl->x_axis.coord0;
     else
-        pt0.x = gl->x_axis.coord0 + 0.5f * gl->x_axis.coord_delta;
+        pt0.x = gl->x_axis.coord0 + 0.5f * gl->x_axis.coord_delta;  /* centered */
     pt0.y = gl->x_axis.coord_labels;
     for(v = gl->x_axis.grid_base; v <= gl->x_axis.max_value; v += gl->x_axis.grid_delta) {
         chart_str_value(xa, v, buffer);
@@ -1211,7 +1209,7 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* co
     if(gl->y_axis.type != GRID_AXIS_CATEGORY)
         pt0.y = gl->y_axis.coord1;
     else
-        pt0.y = gl->y_axis.coord1 - 0.5f * gl->y_axis.coord_delta;
+        pt0.y = gl->y_axis.coord1 - 0.5f * gl->y_axis.coord_delta; /* centered */
     for(v = gl->y_axis.grid_base; v <= gl->y_axis.max_value; v += gl->y_axis.grid_delta) {
         chart_str_value(ya, v, buffer);
         len = wcslen(buffer);
