@@ -347,6 +347,51 @@ typedef struct MC_CHDATASET_tag {
 } MC_CHDATASET;
 
 /**
+ * @brief Structure for manipulating a chart's color scheme.
+ *
+ * A chart control is drawn using a combination of three user-configurable
+ * colors. The foreground color is used as the base color when drawing all
+ * of the chart's foreground elements, including the axes, gridlines,
+ * labels, titles, and legend. For the background color, two different
+ * colors are defined: one for the background of the chart itself
+ * (i.e., the area bounded by the axes where the data is plotted)
+ * and another for the background color of the whole control
+ * (i.e., the area outside of the axes). The two background colors
+ * may be set to the same or different colors, according to one's
+ * desired appearance. (A common technique is to set the control's
+ * background color to be slightly darker or lighter than the chart's
+ * background color in order to enhance the visual separation between
+ * the chart area and the axes. For example, setting the control's
+ * background color to be a 25% blend of the foreground color against
+ * the chart's background color would result in the control's
+ * background color being the same as the color used for the gridlines.)
+ *
+ * If the foreground color is @ref MC_CLR_DEFAULT, the default
+ * window text color (@c COLOR_WINDOWTEXT) is used.
+ *
+ * If either of the background colors are @ref MC_CLR_DEFAULT,
+ * the default window color (@c COLOR_WINDOW) is used. Thus, in
+ * the default configuration, both background colors are the same.
+ *
+ * The colors are always retrieved and set as a unit, not individually,
+ * because system colors must be matched, never mixed
+ * (https://devblogs.microsoft.com/oldnewthing/20071212-00/?p=24203).
+ *
+ * @note The chart control always uses its configured colors,
+ * even when visual styles are enabled.
+ *
+ * @sa MC_CHM_GETCOLORS MC_CHM_SETCOLORS
+ */
+typedef struct MC_CHCOLORS_tag {
+    /** The base color for all of the chart's foreground elements. */
+    COLORREF clrFore;
+    /** The background color for the chart's data region (inside the axes). */
+    COLORREF clrBack;
+    /** The background color for the chart control (outside the axes). */
+    COLORREF clrCtrl;
+} MC_CHCOLORS;
+
+/**
  * @brief Structure for notification @ref MC_CHN_GETDISPINFO.
  */
 typedef struct MC_NMCHDISPINFO_tag {
@@ -686,60 +731,25 @@ typedef struct MC_NMCHHOTTRACK_tag {
 #define MC_CHM_SETAXISGRIDLINESUPPRESS (MC_CHM_FIRST + 23)
 
 /**
- * @brief Get the foreground and background colors of the chart.
+ * @brief Get the colors for the chart.
  *
- * A chart control uses its background color when drawing the background of the
- * chart area and all other whitespace. The foreground color is used as the
- * base color when drawing the axes, gridlines, labels, titles, and legend.
- *
- * The control uses its configured foreground and background colors
- * even when visual styles are enabled.
- *
- * If the foreground color is @ref MC_CLR_DEFAULT, the control uses the
- * default window-text color (@c COLOR_WINDOWTEXT) as its foreground color.
- *
- * If the background color is @ref MC_CLR_DEFAULT, the control uses the
- * default window color (@c COLOR_WINDOW) as its background color.
- *
- * The foreground and background colors are retrieved and set as a unit,
- * not individually, because system colors must be matched, never mixed
- * (https://devblogs.microsoft.com/oldnewthing/20071212-00/?p=24203).
- *
- * @param[out] wParam (@c COLORREF*) Pointer to a @c COLORREF value that will
- * be filled in with the foreground color (which may be @ref MC_CLR_DEFAULT).
- * @param[out] lParam (@c COLORREF*) Pointer to a @c COLORREF value that will
- * be filled in with the background color (which may be @ref MC_CLR_DEFAULT).
- * @return (@c BOOL) Always returns TRUE (cannot fail).
+ * @param wParam Reserved, set to zero.
+ * @param[in,out] lParam (@c MC_CHCOLORS*) Pointer to a @ref MC_CHCOLORS structure
+ * that will be filled in with the colors currently configured for the chart.
+ * @return (@c BOOL) @c TRUE on success, @c FALSE otherwise.
  */
 #define MC_CHM_GETCOLORS               (MC_CHM_FIRST + 24)
 
 /**
- * @brief Set the foreground and background colors of the chart.
+ * @brief Set the colors for the chart.
  *
- * A chart control uses its background color when drawing the background of the
- * chart area and all other whitespace. The foreground color is used as the
- * base color when drawing the axes, gridlines, labels, titles, and legend.
+ * @param wParam Reserved, set to zero.
+ * @param[in] lParam (@c MC_CHCOLORS*) Pointer to a @ref MC_CHCOLORS structure
+ * that specifies the new colors to set for the chart.
+ * @return (@c BOOL) @c TRUE on success, @c FALSE otherwise.
  *
- * The control uses its configured foreground and background colors
- * even when visual styles are enabled.
- *
- * If the foreground color is @ref MC_CLR_DEFAULT, the control uses the
- * default window-text color (@c COLOR_WINDOWTEXT) as its foreground color.
- *
- * If the background color is @ref MC_CLR_DEFAULT, the control uses the
- * default window color (@c COLOR_WINDOW) as its background color.
- *
- * The foreground and background colors are retrieved and set as a unit,
- * not individually, because system colors must be matched, never mixed
- * (https://devblogs.microsoft.com/oldnewthing/20071212-00/?p=24203).
- *
- * @param[in] wParam (@c COLORREF) The foreground color
- * (which may be @ref MC_CLR_DEFAULT).
- * @param[in] lParam (@c COLORREF) The background color
- * (which may be @ref MC_CLR_DEFAULT).
- * @return (@c BOOL) Always returns TRUE (cannot fail).
- * @note The control will always be repainted after sending this message to
- * set its colors, unless redrawing has been suppressed via @c WM_SETREDRAW.
+ * @note If this message succeeds, the control will always be repainted
+ * automatically, unless redrawing has been suppressed via @c WM_SETREDRAW.
  */
 #define MC_CHM_SETCOLORS               (MC_CHM_FIRST + 25)
 

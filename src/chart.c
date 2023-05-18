@@ -84,8 +84,9 @@ struct chart_tag {
     UINT32 tracking_leave :  1;
     UINT32 tooltip_active :  1;
     xd2d_cache_t xd2d_cache;
-    COLORREF back_color;
     COLORREF fore_color;
+    COLORREF back_color;
+    COLORREF ctrl_color;
     chart_axis_t axis1;
     chart_axis_t axis2;
     int hot_set_ix;
@@ -102,8 +103,9 @@ struct chart_layout_tag {
 
 typedef struct chart_paint_colors_tag chart_paint_colors_t;
 struct chart_paint_colors_tag {
-    c_D2D1_COLOR_F back;
     c_D2D1_COLOR_F fore;
+    c_D2D1_COLOR_F back;
+    c_D2D1_COLOR_F ctrl;
 };
 
 typedef struct chart_xd2d_ctx_tag chart_xd2d_ctx_t;
@@ -1138,6 +1140,18 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* co
         c_ID2D1RenderTarget_SetTransform(rt, &old_matrix);
     }
 
+    /* Paint interior region of the axes, if necessary. */
+    if(chart->back_color != chart->ctrl_color) {
+        c_D2D1_RECT_F r = { grid_map_x(gl->x_axis.grid_base, gl),
+                            grid_map_y(gl->y_axis.grid_base, gl),
+                            grid_map_x(gl->x_axis.max_value, gl),
+                            grid_map_y(gl->y_axis.max_value, gl),
+                          };
+        c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &colors->back);
+        c_ID2D1RenderTarget_FillRectangle(rt, &r, (c_ID2D1Brush*)ctx->solid_brush);
+        c_ID2D1RenderTarget_DrawRectangle(rt, &r, (c_ID2D1Brush*)ctx->solid_brush, 1.0f, NULL);
+    }
+
     /* Paint grid lines. */
     c = colors->fore;
     c.a = 0.25f;
@@ -2047,16 +2061,19 @@ chart_paint(void* ctrl, xd2d_ctx_t* raw_ctx)
     DWORD type;
 
     /* Initialize the color cache. */
-    xd2d_color_set_cref(&colors.back,
-                        (chart->back_color == MC_CLR_DEFAULT) ? GetSysColor(COLOR_WINDOW)
-                                                              : chart->back_color);
     xd2d_color_set_cref(&colors.fore,
                         (chart->fore_color == MC_CLR_DEFAULT) ? GetSysColor(COLOR_WINDOWTEXT)
                                                               : chart->fore_color);
+    xd2d_color_set_cref(&colors.back,
+                        (chart->back_color == MC_CLR_DEFAULT) ? GetSysColor(COLOR_WINDOW)
+                                                              : chart->back_color);
+    xd2d_color_set_cref(&colors.ctrl,
+                        (chart->ctrl_color == MC_CLR_DEFAULT) ? GetSysColor(COLOR_WINDOW)
+                                                              : chart->ctrl_color);
 
     /* Erase the background, if necessary. */
     if(ctx->ctx.erase) {
-        c_ID2D1RenderTarget_Clear(rt, &colors.back);
+        c_ID2D1RenderTarget_Clear(rt, &colors.ctrl);
     }
 
     /* Transform to make [0,0] to fit in the pixel matrix. */
@@ -2784,6 +2801,42 @@ chart_set_axis_gridline_suppress(chart_t* chart, int axis_id, BOOL suppress_grid
 }
 
 static BOOL
+chart_get_colors(chart_t* chart, MC_CHCOLORS* colors)
+{
+    if(MC_ERR(colors == NULL)) {
+        MC_TRACE("chart_get_colors: pointer was null");
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
+    colors->clrFore = chart->fore_color;
+    colors->clrBack = chart->back_color;
+    colors->clrCtrl = chart->ctrl_color;
+    return TRUE;
+}
+
+static BOOL
+chart_set_colors(chart_t* chart, MC_CHCOLORS* colors)
+{
+    if(MC_ERR(colors == NULL)) {
+        MC_TRACE("chart_set_colors: pointer was null");
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
+    chart->fore_color = colors->clrFore;
+    chart->back_color = colors->clrBack;
+    chart->ctrl_color = colors->clrCtrl;
+
+    chart_setup_hot(chart);
+
+    if(!chart->no_redraw)
+        xd2d_invalidate(chart->win, NULL, TRUE, &chart->xd2d_cache);
+
+    return TRUE;
+}
+
+static BOOL
 chart_get_axis_legend(chart_t* chart, int axis_id, UINT buf_size, void* buffer,
                       BOOL unicode)
 {
@@ -2876,8 +2929,9 @@ chart_nccreate(HWND win, CREATESTRUCT* cs)
     chart->win = win;
     chart->notify_win = cs->hwndParent;
     chart->style = cs->style;
-    chart->back_color = MC_CLR_DEFAULT;
     chart->fore_color = MC_CLR_DEFAULT;
+    chart->back_color = MC_CLR_DEFAULT;
+    chart->ctrl_color = MC_CLR_DEFAULT;
     chart->hot_set_ix = -1;
     chart->hot_i = -1;
     dsa_init(&chart->data, sizeof(chart_data_t));
@@ -3070,17 +3124,10 @@ chart_proc(HWND win, UINT msg, WPARAM wp, LPARAM lp)
             return chart_set_axis_gridline_suppress(chart, wp, lp);
 
         case MC_CHM_GETCOLORS:
-            *((COLORREF*)wp) = chart->fore_color;
-            *((COLORREF*)lp) = chart->back_color;
-            return TRUE;
+            return chart_get_colors(chart, (MC_CHCOLORS*) lp);
 
         case MC_CHM_SETCOLORS:
-            chart->fore_color = (COLORREF)wp;
-            chart->back_color = (COLORREF)lp;
-            chart_setup_hot(chart);
-            if(!chart->no_redraw)
-                xd2d_invalidate(chart->win, NULL, TRUE, &chart->xd2d_cache);
-            return TRUE;
+            return chart_set_colors(chart, (MC_CHCOLORS*) lp);
 
         case WM_SIZE:
             if(chart->xd2d_cache != NULL) {

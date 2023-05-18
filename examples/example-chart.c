@@ -63,6 +63,9 @@ SetupScatterChart(HWND hwndChart)
     const int femaleData[] = { 155,  51,   178,  65,   170,  74,   162,  44,
                                181,  88,   158,  54,   163,  49,   163,  56 };
     MC_CHDATASET dataSet;
+    const MC_CHCOLORS colors = { /* foreground color:         */ RGB( 85,  85, 170),
+                                 /* chart background color:   */ RGB(255, 255, 215),
+                                 /* control background color: */ RGB(212, 212, 204) };
 
     SetWindowText(hwndChart, _T("Height vs. Weight"));
 
@@ -81,9 +84,7 @@ SetupScatterChart(HWND hwndChart)
     SendMessage(hwndChart, MC_CHM_SETDATASETLEGEND, 1, (LPARAM) _T("Females"));
     SendMessage(hwndChart, MC_CHM_SETDATASETCOLOR, 1, RGB(200,0,0));
 
-    SendMessage(hwndChart, MC_CHM_SETCOLORS,
-                /* foreground color: */ RGB( 85,  85, 170),
-                /* background color: */ RGB(255, 255, 215));
+    SendMessage(hwndChart, MC_CHM_SETCOLORS, 0, (LPARAM) &colors);
 }
 
 static void
