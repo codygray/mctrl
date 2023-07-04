@@ -193,9 +193,12 @@
         #endif
     #endif
 
-    /* MSVC does not know roundf() */
-    static inline float roundf(float x)
-        { return x >= 0.0f ? floorf(x + 0.5f) : ceilf(x - 0.5f); }
+    /* Prior to VS 2013, MSVC did not support roundf()
+     * (https://devblogs.microsoft.com/cppblog/c99-library-support-in-visual-studio-2013/). */
+    #if MC_COMPILER_MSVC < 1800
+        static inline float roundf(float x)
+            { return x >= 0.0f ? floorf(x + 0.5f) : ceilf(x - 0.5f); }
+    #endif
 
     /* With recent SDK versions, <shlwapi.h> started to #undefine COM C wrapper
      * macros IStream_Read and IStream_Write and instead it provides its own
