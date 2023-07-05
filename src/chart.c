@@ -2225,7 +2225,7 @@ chart_update_hottracking(chart_t* chart)
     info.pszDataSet = NULL;
     info.clrDataSet = CLR_INVALID;
     info.iDataSet = -1;
-    info.dataSetState = -1;
+    info.dataSetState = (UINT) -1;
     if(tracking_item) {
         const chart_data_t* const data = DSA_ITEM(&chart->data, chart->hot_set_ix, chart_data_t);
 
