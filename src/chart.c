@@ -87,6 +87,8 @@ struct chart_tag {
     COLORREF fore_color;
     COLORREF back_color;
     COLORREF ctrl_color;
+    int dec_delim_len;
+    WCHAR dec_delim[4];
     chart_axis_t axis1;
     chart_axis_t axis2;
     int hot_set_ix;
@@ -292,40 +294,41 @@ chart_value(chart_t* chart, int set_ix, int i)
         return chart_value_from_parent(chart, set_ix, i);
 }
 
-static void
-chart_str_value(chart_axis_t* axis, int value, WCHAR buffer[CHART_STR_VALUE_MAX_LEN])
+static int
+chart_str_value(const chart_t* chart, chart_axis_t* axis,
+                int value, WCHAR buffer[CHART_STR_VALUE_MAX_LEN])
 {
+    int len;
+
     value += axis->offset;
 
     if(axis->factor_exp == 0  ||  value == 0) {
-        _swprintf(buffer, L"%d", value);
+        len = _swprintf(buffer, L"%d", value);
     } else if(axis->factor_exp > 0) {
         int i, n;
         n = _swprintf(buffer, L"%d", value);
-        for(i = n; i < n + axis->factor_exp; i++)
+        len = n + axis->factor_exp;
+        for(i = n; i < len; i++)
             buffer[i] = L'0';
-        buffer[n + axis->factor_exp] = L'\0';
+        buffer[len] = L'\0';
     } else {
         int value_abs = MC_ABS(value);
         int factor = 10;
         int i;
-        WCHAR dec_delim[4];
-        int dec_delim_len;
 
         for(i = -(axis->factor_exp); i != 1; i--)
             factor *= 10;
 
-        dec_delim_len = GetLocaleInfoW(GetThreadLocale(), LOCALE_SDECIMAL,
-                                       dec_delim, MC_SIZEOF_ARRAY(dec_delim));
-        if(MC_ERR(dec_delim_len == 0)) {
-            dec_delim[0] = L'.';
-            dec_delim_len = 1;
-        }
-
-        _swprintf(buffer, L"%s%d%.*s%0.*d", (value >= 0  ?  L""  :  L"-"),
-                  value_abs / factor, dec_delim_len, dec_delim,
-                  -(axis->factor_exp), value_abs % factor);
+        len = _swprintf(buffer, L"%s%d%.*s%0.*d",
+                        (value >= 0  ?  L""  :  L"-"),
+                        value_abs / factor,
+                        chart->dec_delim_len, chart->dec_delim,
+                        -(axis->factor_exp),
+                        value_abs % factor);
     }
+
+    MC_ASSERT(len == wcslen(buffer));
+    return len;
 }
 
 
@@ -601,10 +604,11 @@ pie_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* col
             /* Paint label */
             {
                 WCHAR buffer[CHART_STR_VALUE_MAX_LEN];
+                int len;
                 c_IDWriteTextLayout* text_layout;
 
-                chart_str_value(&chart->axis1, val, buffer);
-                text_layout = xdwrite_create_text_layout(buffer, wcslen(buffer),
+                len = chart_str_value(chart, &chart->axis1, val, buffer);
+                text_layout = xdwrite_create_text_layout(buffer, len,
                             chart->text_fmt, 0.0f, 0.0f,
                             XDWRITE_ALIGN_CENTER | XDWRITE_VALIGN_CENTER | XDWRITE_NOWRAP);
                 if(text_layout != NULL) {
@@ -980,8 +984,7 @@ grid_calc_layout(chart_t* chart, const chart_layout_t* chart_layout,
     grid_fix_axis_scale(&gl->y_axis, ya);
 
     /* Compute space reserved for all X-axis value labels. */
-    chart_str_value(xa, gl->x_axis.max_value, buffer);
-    len = wcslen(buffer);
+    len = chart_str_value(chart, xa, gl->x_axis.max_value, buffer);
     text_layout = xdwrite_create_text_layout(buffer, len,
                 chart->text_fmt, 0.0f, 0.0f, XDWRITE_NOWRAP);
     x_label_width = 0.0f;
@@ -996,8 +999,7 @@ grid_calc_layout(chart_t* chart, const chart_layout_t* chart_layout,
         c_IDWriteTextLayout_Release(text_layout);
     }
     if(gl->x_axis.min_value < 0) {
-        chart_str_value(xa, gl->x_axis.min_value, buffer);
-        len = wcslen(buffer);
+        len = chart_str_value(chart, xa, gl->x_axis.min_value, buffer);
         text_layout = xdwrite_create_text_layout(buffer, len,
                     chart->text_fmt, 0.0f, 0.0f, XDWRITE_NOWRAP);
         if(text_layout != NULL) {
@@ -1014,8 +1016,7 @@ grid_calc_layout(chart_t* chart, const chart_layout_t* chart_layout,
     x_label_height = 1.5f * x_label_height;
 
     /* Compute space reserved for all Y-axis value labels. */
-    chart_str_value(ya, gl->y_axis.max_value, buffer);
-    len = wcslen(buffer);
+    len = chart_str_value(chart, ya, gl->y_axis.max_value, buffer);
     text_layout = xdwrite_create_text_layout(buffer, len,
                 chart->text_fmt, 0.0f, 0.0f, XDWRITE_NOWRAP);
     y_label_width = 0.0f;
@@ -1032,8 +1033,7 @@ grid_calc_layout(chart_t* chart, const chart_layout_t* chart_layout,
         c_IDWriteTextLayout_Release(text_layout);
     }
     if(gl->y_axis.min_value < 0) {
-        chart_str_value(ya, gl->y_axis.min_value, buffer);
-        len = wcslen(buffer);
+        len = chart_str_value(chart, ya, gl->y_axis.min_value, buffer);
         text_layout = xdwrite_create_text_layout(buffer, len,
                     chart->text_fmt, 0.0f, 0.0f, XDWRITE_NOWRAP);
         if(text_layout != NULL) {
@@ -1205,8 +1205,7 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* co
         pt0.x = gl->x_axis.coord0 + 0.5f * gl->x_axis.coord_delta;  /* centered */
     pt0.y = gl->x_axis.coord_labels;
     for(v = gl->x_axis.grid_base; v <= gl->x_axis.max_value; v += gl->x_axis.grid_delta) {
-        chart_str_value(xa, v, buffer);
-        len = wcslen(buffer);
+        len = chart_str_value(chart, xa, v, buffer);
         text_layout = xdwrite_create_text_layout(buffer, len, chart->text_fmt, 0.0f, 0.0f,
                     XDWRITE_NOWRAP | XDWRITE_ALIGN_CENTER | XDWRITE_VALIGN_BOTTOM);
         if(text_layout != NULL) {
@@ -1227,8 +1226,7 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* co
     else
         pt0.y = gl->y_axis.coord1 - 0.5f * gl->y_axis.coord_delta; /* centered */
     for(v = gl->y_axis.grid_base; v <= gl->y_axis.max_value; v += gl->y_axis.grid_delta) {
-        chart_str_value(ya, v, buffer);
-        len = wcslen(buffer);
+        len = chart_str_value(chart, ya, v, buffer);
         text_layout = xdwrite_create_text_layout(buffer, len, chart->text_fmt, 0.0f, 0.0f,
                     XDWRITE_NOWRAP | XDWRITE_ALIGN_RIGHT | XDWRITE_VALIGN_CENTER);
         if(text_layout != NULL) {
@@ -1708,7 +1706,7 @@ column_paint(chart_t* chart, BOOL is_stacked, const chart_layout_t* layout,
 }
 
 static inline void
-column_hit_test(chart_t* chart, BOOL is_stacked, chart_layout_t* layout,
+column_hit_test(chart_t* chart, BOOL is_stacked, const chart_layout_t* layout,
                 int x, int y, int* p_set_ix, int* p_i)
 {
     column_paint_and_hit_test(chart, is_stacked, layout,
@@ -1826,7 +1824,7 @@ bar_paint(chart_t* chart, BOOL is_stacked, const chart_layout_t* layout,
 }
 
 static inline void
-bar_hit_test(chart_t* chart, BOOL is_stacked, chart_layout_t* layout,
+bar_hit_test(chart_t* chart, BOOL is_stacked, const chart_layout_t* layout,
              int x, int y, int* p_set_ix, int* p_i)
 {
     bar_paint_and_hit_test(chart, is_stacked, layout,
@@ -1934,7 +1932,7 @@ legend_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* 
 }
 
 static int
-legend_hit_test(chart_t* chart, chart_layout_t* layout, int x, int y)
+legend_hit_test(chart_t* chart, const chart_layout_t* layout, int x, int y)
 {
     float font_height;
     float color_size;
@@ -2084,6 +2082,7 @@ chart_paint(void* ctrl, xd2d_ctx_t* raw_ctx)
     matrix._31 = 0.5f;  matrix._32 = 0.5f;
     c_ID2D1RenderTarget_SetTransform(rt, &matrix);
 
+    /* Calculate and cache the layout information. */
     chart_calc_layout(chart, &layout);
 
     /* Paint title */
@@ -2232,7 +2231,8 @@ chart_update_hottracking(chart_t* chart)
         const chart_data_t* const data = DSA_ITEM(&chart->data, chart->hot_set_ix, chart_data_t);
 
         int val = chart_value(chart, chart->hot_set_ix, chart->hot_i);
-        chart_str_value((chart_type == MC_CHS_SCATTER ||
+        chart_str_value(chart,
+                        (chart_type == MC_CHS_SCATTER ||
                          chart_type == MC_CHS_CONNECTEDSCATTER ||
                          chart_type == MC_CHS_PIE)
                          ? &chart->axis1
@@ -2243,7 +2243,7 @@ chart_update_hottracking(chart_t* chart)
         info.pszValue = x_str;
         if(chart_type == MC_CHS_SCATTER  ||  chart_type == MC_CHS_CONNECTEDSCATTER) {
             val = chart_value(chart, chart->hot_set_ix, chart->hot_i+1);
-            chart_str_value(&chart->axis2, val, temp_str);
+            chart_str_value(chart, &chart->axis2, val, temp_str);
             mc_str_inbuf(temp_str, MC_STRW, y_str, MC_STRT, MC_SIZEOF_ARRAY(y_str));
             info.pszValueY = y_str;
         }
@@ -2942,6 +2942,18 @@ chart_nccreate(HWND win, CREATESTRUCT* cs)
 }
 
 static void
+chart_update_locale(chart_t* chart)
+{
+    /* Retrieve and cache the decimal delimiter character(s) for this thread's locale. */
+    chart->dec_delim_len = GetLocaleInfoW(GetThreadLocale(), LOCALE_SDECIMAL,
+                                          chart->dec_delim, MC_SIZEOF_ARRAY(chart->dec_delim));
+    if(MC_ERR(chart->dec_delim_len == 0)) {
+        chart->dec_delim[0] = L'.';
+        chart->dec_delim_len = 1;
+    }
+}
+
+static void
 chart_setup_text_fmt(chart_t* chart)
 {
     c_DWRITE_FONT_METRICS font_metrics;
@@ -2957,6 +2969,7 @@ chart_setup_text_fmt(chart_t* chart)
 static int
 chart_create(chart_t* chart)
 {
+    chart_update_locale(chart);
     chart_setup_text_fmt(chart);
     chart_setup_hot(chart);
 
@@ -3181,6 +3194,13 @@ chart_proc(HWND win, UINT msg, WPARAM wp, LPARAM lp)
         case WM_SYSCOLORCHANGE:
             if(!chart->no_redraw)
                 xd2d_invalidate(chart->win, NULL, TRUE, &chart->xd2d_cache);
+            break;
+
+        case WM_SETTINGCHANGE:
+            if(wp == 0  &&  lp  &&  wcscmp((const wchar_t*)lp, L"intl"))
+                chart_update_locale(chart);
+                if(!chart->no_redraw)
+                    xd2d_invalidate(chart->win, NULL, TRUE, &chart->xd2d_cache);
             break;
 
         case CCM_SETNOTIFYWINDOW:
