@@ -771,6 +771,34 @@ typedef struct MC_NMCHHOTTRACK_tag {
  */
 #define MC_CHM_SETDATASETSTATE        (MC_CHM_FIRST + 27)
 
+/**
+ * @brief Gets minimum bound of a primary or secondary axis.
+ * @param[in] wParam (@c int) Set to @c -1 to retrieve the minimum lower bound
+ * of the primary axis, @c +1 to retrieve the minimum upper bound of the
+ * primary axis, @c -2 to retrieve the minimum lower bound of the secondary
+ * axis, or @c +2 to retrieve the minimum upper bound of the secondary axis.
+ * @param[in,out] lParam (@c int*) Pointer to a int value that will be filled
+ * in with the currently configured minimum bound for the axis, or a null
+ * pointer if you don't care to retrieve the actual value.
+ * @return (@c int) @c +1 on success when the specified minimum bound is
+ * configured, @c -1 on success when the specified minimum bound is not
+ * configured, or @c 0 on failure.
+ */
+#define MC_CHM_GETAXISMINBOUND        (MC_CHM_FIRST + 28)
+
+/**
+ * @brief Sets minimum bound of a primary or secondary axis.
+ * @param[in] wParam (@c int) Set to @c -1 to set the minimum lower bound
+ * of the primary axis, @c +1 to set the minimum upper bound of the
+ * primary axis, @c -2 to set the minimum lower bound of the secondary
+ * axis, or @c +2 to set the minimum upper bound of the secondary axis.
+ * @param[in] lParam (@c int*) Pointer to a int value that contains the
+ * minimum bound to set for the specified axis, or a null pointer to
+ * clear (remove/unset) the minimum bound for the specified axis.
+ * @return (@c BOOL) @c TRUE on success, @c FALSE otherwise.
+ */
+#define MC_CHM_SETAXISMINBOUND        (MC_CHM_FIRST + 29)
+
 /*@}*/
 
 

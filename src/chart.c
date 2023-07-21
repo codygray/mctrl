@@ -59,6 +59,10 @@ struct chart_axis_tag {
     int offset;
     signed char factor_exp;
     unsigned char suppress_gridlines;
+    unsigned char min_lower_bound_set;
+    unsigned char min_upper_bound_set;
+    int min_lower_bound;
+    int min_upper_bound;
 };
 
 typedef struct chart_data_tag chart_data_t;
@@ -956,6 +960,20 @@ grid_calc_layout(chart_t* chart, const chart_layout_t* chart_layout,
         gl->x_axis.max_value = 0;
         gl->y_axis.min_value = 0;
         gl->y_axis.max_value = 0;
+    }
+
+    /* Constrain axes values as configured. */
+    if(xa->min_lower_bound_set) {
+        gl->x_axis.min_value = MC_MIN(gl->x_axis.min_value, xa->min_lower_bound);
+    }
+    if(xa->min_upper_bound_set) {
+        gl->x_axis.max_value = MC_MAX(gl->x_axis.max_value, xa->min_upper_bound);
+    }
+    if(ya->min_lower_bound_set) {
+        gl->y_axis.min_value = MC_MIN(gl->y_axis.min_value, ya->min_lower_bound);
+    }
+    if(ya->min_upper_bound_set) {
+        gl->y_axis.max_value = MC_MAX(gl->y_axis.max_value, ya->min_upper_bound);
     }
 
     /* Swap the axis for the bar chart. */
@@ -2802,6 +2820,87 @@ chart_set_axis_gridline_suppress(chart_t* chart, int axis_id, BOOL suppress_grid
     return TRUE;
 }
 
+static int
+chart_get_axis_min_bound(chart_t* chart, int axis_id, int* min_bound)
+{
+    switch(axis_id) {
+        case -1:
+            if(min_bound) *min_bound = chart->axis1.min_lower_bound;
+            return chart->axis1.min_lower_bound_set ? +1 : -1;
+
+        case +1:
+            if(min_bound) *min_bound = chart->axis1.min_upper_bound;
+            return chart->axis1.min_upper_bound_set ? +1 : -1;
+
+        case -2:
+            if(min_bound) *min_bound = chart->axis2.min_lower_bound;
+            return chart->axis2.min_lower_bound_set ? +1 : -1;
+
+        case +2:
+            if(min_bound) *min_bound = chart->axis2.min_upper_bound;
+            return chart->axis2.min_upper_bound_set ? +1 : -1;
+
+        default:
+            MC_TRACE("chart_get_axis_min_bound: Invalid axis %d", axis_id);
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return 0;
+    }
+}
+
+static BOOL
+chart_set_axis_min_bound(chart_t* chart, int axis_id, int* min_bound)
+{
+    switch(axis_id) {
+        case -1:
+            if(min_bound) {
+                chart->axis1.min_lower_bound = *min_bound;
+                chart->axis1.min_lower_bound_set = 1;
+            } else {
+                chart->axis1.min_lower_bound_set = 0;
+            }
+            break;
+
+        case +1:
+            if(min_bound) {
+                chart->axis1.min_upper_bound = *min_bound;
+                chart->axis1.min_upper_bound_set = 1;
+            } else {
+                chart->axis1.min_upper_bound_set = 0;
+            }
+            break;
+
+        case -2:
+            if(min_bound) {
+                chart->axis2.min_lower_bound = *min_bound;
+                chart->axis2.min_lower_bound_set = 1;
+            } else {
+                chart->axis2.min_lower_bound_set = 0;
+            }
+            break;
+
+        case +2:
+            if(min_bound) {
+                chart->axis2.min_upper_bound = *min_bound;
+                chart->axis2.min_upper_bound_set = 1;
+            } else {
+                chart->axis2.min_upper_bound_set = 0;
+            }
+            break;
+
+        default:
+            MC_TRACE("chart_set_axis_min_bound: Invalid axis %d", axis_id);
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return FALSE;
+    }
+
+    chart_setup_hot(chart);
+
+    if(!chart->no_redraw)
+        xd2d_invalidate(chart->win, NULL, TRUE, &chart->xd2d_cache);
+
+    return TRUE;
+}
+
 static BOOL
 chart_get_colors(chart_t* chart, MC_CHCOLORS* colors)
 {
@@ -3115,6 +3214,12 @@ chart_proc(HWND win, UINT msg, WPARAM wp, LPARAM lp)
 
         case MC_CHM_SETAXISOFFSET:
             return chart_set_axis_offset(chart, wp, lp);
+
+        case MC_CHM_GETAXISMINBOUND:
+            return chart_get_axis_min_bound(chart, wp, (int*)lp);
+
+        case MC_CHM_SETAXISMINBOUND:
+            return chart_set_axis_min_bound(chart, wp, (int*)lp);
 
         case MC_CHM_SETTOOLTIPS:
             return generic_settooltips(win, &chart->tooltip_win, (HWND) wp, TRUE);
