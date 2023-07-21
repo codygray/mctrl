@@ -306,6 +306,7 @@ chart_str_value(chart_axis_t* axis, int value, WCHAR buffer[CHART_STR_VALUE_MAX_
             buffer[i] = L'0';
         buffer[n + axis->factor_exp] = L'\0';
     } else {
+        int value_abs = MC_ABS(value);
         int factor = 10;
         int i;
         WCHAR dec_delim[4];
@@ -321,8 +322,9 @@ chart_str_value(chart_axis_t* axis, int value, WCHAR buffer[CHART_STR_VALUE_MAX_
             dec_delim_len = 1;
         }
 
-        _swprintf(buffer, L"%d%.*s%0.*d", value / factor, dec_delim_len, dec_delim,
-                  -(axis->factor_exp), MC_ABS(value) % factor);
+        _swprintf(buffer, L"%s%d%.*s%0.*d", (value >= 0  ?  L""  :  L"-"),
+                  value_abs / factor, dec_delim_len, dec_delim,
+                  -(axis->factor_exp), value_abs % factor);
     }
 }
 
