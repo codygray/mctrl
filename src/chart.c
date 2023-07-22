@@ -1130,17 +1130,22 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* co
     c_ID2D1SolidColorBrush_SetColor(ctx->solid_brush, &c);
 
     /* Paint X-axis name. */
-    text_layout = xdwrite_create_text_layout(xa->name, _tcslen(xa->name),
+    len = _tcslen(xa->name);
+    text_layout = xdwrite_create_text_layout(xa->name, len,
                 chart->text_fmt, 0.0f, 0.0f,
                 XDWRITE_ALIGN_CENTER | XDWRITE_VALIGN_CENTER | XDWRITE_NOWRAP);
     if(text_layout != NULL) {
+        c_DWRITE_TEXT_RANGE range = { 0, len };
+
+        c_IDWriteTextLayout_SetFontWeight(text_layout, FW_MEDIUM, range);
         c_ID2D1RenderTarget_DrawTextLayout(rt, gl->x_axis.name_pos,
                     text_layout, (c_ID2D1Brush*) ctx->solid_brush, 0);
         c_IDWriteTextLayout_Release(text_layout);
     }
 
     /* Paint Y-axis name. */
-    text_layout = xdwrite_create_text_layout(ya->name, _tcslen(ya->name),
+    len = _tcslen(ya->name);
+    text_layout = xdwrite_create_text_layout(ya->name, len,
                 chart->text_fmt, 0.0f, 0.0f,
                 XDWRITE_ALIGN_CENTER | XDWRITE_VALIGN_CENTER | XDWRITE_NOWRAP);
     if(text_layout != NULL) {
@@ -1148,12 +1153,14 @@ grid_paint(chart_t* chart, chart_xd2d_ctx_t* ctx, const chart_paint_colors_t* co
         c_D2D1_MATRIX_3X2_F matrix;
         float cx = gl->y_axis.name_pos.x + 0.5f;
         float cy = gl->y_axis.name_pos.y + 0.5f;
+        c_DWRITE_TEXT_RANGE range = { 0, len };
 
         c_ID2D1RenderTarget_GetTransform(rt, &old_matrix);
         matrix._11 = 0.0f;      matrix._12 = -1.0f;
         matrix._21 = 1.0f;      matrix._22 = 0.0f;
         matrix._31 = -cy + cx;  matrix._32 = cx + cy;
         c_ID2D1RenderTarget_SetTransform(rt, &matrix);
+        c_IDWriteTextLayout_SetFontWeight(text_layout, FW_MEDIUM, range);
         c_ID2D1RenderTarget_DrawTextLayout(rt, gl->y_axis.name_pos,
                     text_layout, (c_ID2D1Brush*) ctx->solid_brush, 0);
         c_IDWriteTextLayout_Release(text_layout);
